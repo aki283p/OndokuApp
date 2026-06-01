@@ -34,12 +34,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isSpeaking = true 
         },
         onDone = { index -> 
-            // 全チャンク終わったら false になる（ttsManager の挙動に依存）
-            // 実際には最後のチャンクが終わったときだけ false にしたい
-            if (index >= currentChunks.size - 1) {
+            if (index >= currentChunks.size - 1 || index == -1) {
                 isSpeaking = false
+                // 最後まで完了した場合は 0 に戻す
+                saveCurrentPosition(0)
+            } else {
+                saveCurrentPosition(index)
             }
-            saveCurrentPosition(index)
         },
         onError = { _, _ -> isSpeaking = false }
     )
@@ -77,8 +78,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var currentChunkIndex by mutableStateOf(0)
         private set
-    var currentReadingNovel by mutableStateOf<Novel?>(null)
-        private set
+    private var currentReadingNovelId: Long? = null
 
     // スリープタイマー
     private var sleepTimerJob: Job? = null
@@ -131,6 +131,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteNovel(novel: Novel) {
         viewModelScope.launch {
+            if (currentReadingNovelId == novel.id) {
+                stopSpeaking()
+            }
             repository.deleteNovel(novel)
         }
     }
@@ -141,7 +144,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isImporting = true
             importError = null
             importRepository.fetchFromUrl(url).onSuccess { novel ->
-                onComplete(novel.title, novel.content)
+                if (novel.content.isBlank()) {
+                    importError = "本文が取得できませんでした。"
+                } else {
+                    onComplete(novel.title, novel.content)
+                }
             }.onFailure {
                 importError = "取得に失敗しました: ${it.message}"
             }
@@ -159,24 +166,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startSpeaking(novel: Novel, fromStart: Boolean = false) {
-        currentReadingNovel = novel
+        currentReadingNovelId = novel.id
         currentChunks = TextCleaner.splitIntoChunks(novel.content)
         val startIndex = if (fromStart) 0 else novel.currentPosition
-        currentChunkIndex = startIndex
+        currentChunkIndex = startIndex.coerceIn(0, if (currentChunks.isEmpty()) 0 else currentChunks.size - 1)
         
         isSpeaking = true
-        ttsManager.speakChunks(currentChunks, startIndex)
+        ttsManager.speakChunks(currentChunks, currentChunkIndex)
         
-        // Update last read time
+        // Update last read time without overwriting other fields
         viewModelScope.launch {
-            repository.updateNovel(novel.copy(lastReadAt = System.currentTimeMillis()))
+            repository.getNovelById(novel.id)?.let { latest ->
+                repository.updateNovel(latest.copy(lastReadAt = System.currentTimeMillis()))
+            }
         }
     }
 
     private fun saveCurrentPosition(index: Int) {
-        val novel = currentReadingNovel ?: return
+        val novelId = currentReadingNovelId ?: return
         viewModelScope.launch {
-            repository.updateNovel(novel.copy(currentPosition = index))
+            repository.getNovelById(novelId)?.let { latest ->
+                // 最後まで完了した場合は index=0 が渡される想定
+                repository.updateNovel(latest.copy(currentPosition = index))
+            }
         }
     }
 

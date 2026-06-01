@@ -49,7 +49,10 @@ fun ReaderScreen(
             TopAppBar(
                 title = { Text(novel.title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        viewModel.stopSpeaking()
+                        onBack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
                     }
                 },

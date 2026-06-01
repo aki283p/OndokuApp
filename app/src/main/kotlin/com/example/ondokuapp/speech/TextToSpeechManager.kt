@@ -20,6 +20,7 @@ class TextToSpeechManager(
     
     private var chunks: List<String> = emptyList()
     private var currentChunkIndex: Int = 0
+    private var isStoppedManually: Boolean = false
 
     // 簡易ユーザー辞書
     private val userDictionary = mapOf(
@@ -57,6 +58,8 @@ class TextToSpeechManager(
             }
 
             override fun onDone(utteranceId: String?) {
+                if (isStoppedManually) return
+                
                 val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
                 onDone(index)
                 // 次のチャンクへ
@@ -80,10 +83,15 @@ class TextToSpeechManager(
      * 指定したチャンクリストを順番に読み上げる
      */
     fun speakChunks(newChunks: List<String>, startIndex: Int = 0) {
-        if (newChunks.isEmpty()) return
+        if (newChunks.isEmpty()) {
+            onDone(-1)
+            return
+        }
         
+        isStoppedManually = false
         chunks = newChunks
-        currentChunkIndex = startIndex
+        // 範囲補正
+        currentChunkIndex = startIndex.coerceIn(0, chunks.size - 1)
 
         if (!isInitialized) {
             pendingAction = { speakChunks(newChunks, startIndex) }
@@ -94,11 +102,16 @@ class TextToSpeechManager(
     }
 
     private fun playCurrent() {
-        if (currentChunkIndex < 0 || currentChunkIndex >= chunks.size) {
+        if (currentChunkIndex < 0 || currentChunkIndex >= chunks.size || !isInitialized) {
             return
         }
 
         var text = chunks[currentChunkIndex]
+        if (text.isBlank()) {
+            // 空のチャンクは飛ばす
+            playNext()
+            return
+        }
         
         // ユーザー辞書の適用
         userDictionary.forEach { (from, to) ->
@@ -109,9 +122,14 @@ class TextToSpeechManager(
     }
 
     private fun playNext() {
+        if (isStoppedManually) return
+
         if (currentChunkIndex < chunks.size - 1) {
             currentChunkIndex++
             playCurrent()
+        } else {
+            // 全チャンク完了
+            onDone(currentChunkIndex)
         }
     }
 
@@ -128,11 +146,13 @@ class TextToSpeechManager(
     }
 
     fun stop() {
+        isStoppedManually = true
         tts?.stop()
+        pendingAction = null
     }
 
     fun shutdown() {
-        tts?.stop()
+        stop()
         tts?.shutdown()
         tts = null
         isInitialized = false
