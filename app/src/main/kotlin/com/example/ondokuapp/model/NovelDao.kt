@@ -19,4 +19,7 @@ interface NovelDao {
 
     @Delete
     suspend fun deleteNovel(novel: Novel)
+
+    @Query("SELECT * FROM novels WHERE title LIKE :query OR content LIKE :query ORDER BY updatedAt DESC")
+    fun searchNovels(query: String): Flow<List<Novel>>
 }

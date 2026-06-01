@@ -1,20 +1,24 @@
 package com.example.ondokuapp.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.ondokuapp.MainViewModel
 import com.example.ondokuapp.model.Novel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,6 +29,20 @@ fun ReaderScreen(
 ) {
     val speechSettings = viewModel.speechSettings
     val isSpeaking = viewModel.isSpeaking
+    val currentChunks = viewModel.currentChunks
+    val currentChunkIndex = viewModel.currentChunkIndex
+    
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    
+    var showTimerMenu by remember { mutableStateOf(false) }
+
+    // 自動スクロール
+    LaunchedEffect(currentChunkIndex) {
+        if (isSpeaking && currentChunkIndex >= 0 && currentChunkIndex < currentChunks.size) {
+            listState.animateScrollToItem(currentChunkIndex)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -33,6 +51,22 @@ fun ReaderScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showTimerMenu = true }) {
+                        Icon(Icons.Default.Timer, contentDescription = "スリープタイマー")
+                        if (viewModel.sleepTimerMinutes > 0) {
+                            Badge { Text("${viewModel.sleepTimerMinutes}") }
+                        }
+                    }
+                    DropdownMenu(expanded = showTimerMenu, onDismissRequest = { showTimerMenu = false }) {
+                        listOf(0, 5, 10, 15, 30, 60).forEach { mins ->
+                            DropdownMenuItem(
+                                text = { Text(if (mins == 0) "オフ" else "${mins}分") },
+                                onClick = { viewModel.setSleepTimer(mins); showTimerMenu = false }
+                            )
+                        }
                     }
                 }
             )
@@ -59,10 +93,17 @@ fun ReaderScreen(
                                 Text("一時停止")
                             }
                         } else {
-                            Button(onClick = { viewModel.startSpeaking(novel) }) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = "再生")
-                                Spacer(Modifier.width(8.dp))
-                                Text("再生")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (novel.currentPosition > 0) {
+                                    FilledTonalButton(onClick = { viewModel.startSpeaking(novel, fromStart = true) }) {
+                                        Text("最初から")
+                                    }
+                                }
+                                Button(onClick = { viewModel.startSpeaking(novel, fromStart = false) }) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = "再生")
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(if (novel.currentPosition > 0) "続きから" else "再生")
+                                }
                             }
                         }
                     }
@@ -87,17 +128,28 @@ fun ReaderScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        // 本文をチャンク（段落・文）単位で表示し、現在位置をハイライト
+        val displayChunks = if (currentChunks.isNotEmpty()) currentChunks else listOf(novel.content)
+        
+        LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
         ) {
-            Text(
-                text = novel.content,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            itemsIndexed(displayChunks) { index, chunk ->
+                val isCurrent = isSpeaking && index == currentChunkIndex
+                Text(
+                    text = chunk,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .background(if (isCurrent) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .padding(4.dp)
+                )
+            }
         }
     }
 }

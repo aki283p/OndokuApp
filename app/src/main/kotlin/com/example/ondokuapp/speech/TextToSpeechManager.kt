@@ -9,14 +9,24 @@ import java.util.Locale
 
 class TextToSpeechManager(
     context: Context,
-    private val onStart: () -> Unit = {},
-    private val onDone: () -> Unit = {},
-    private val onError: (String) -> Unit = {}
+    private val onStart: (Int) -> Unit = {},
+    private val onDone: (Int) -> Unit = {},
+    private val onError: (Int, String) -> Unit = { _, _ -> }
 ) {
     private var tts: TextToSpeech? = null
     private var isInitialized = false
     private var pendingAction: (() -> Unit)? = null
     private var currentSettings = SpeechSettings()
+    
+    private var chunks: List<String> = emptyList()
+    private var currentChunkIndex: Int = 0
+
+    // 簡易ユーザー辞書
+    private val userDictionary = mapOf(
+        "異世界" to "いせかい",
+        "魔王" to "まおう",
+        "勇者" to "ゆうしゃ"
+    )
 
     init {
         tts = TextToSpeech(context) { status ->
@@ -24,7 +34,7 @@ class TextToSpeechManager(
                 val result = tts?.setLanguage(Locale.JAPANESE)
                 if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                     Log.e("TTS", "Language Japanese is not supported")
-                    onError("日本語の読み上げがサポートされていません")
+                    onError(-1, "日本語の読み上げがサポートされていません")
                 } else {
                     isInitialized = true
                     setupListener()
@@ -34,7 +44,7 @@ class TextToSpeechManager(
                 }
             } else {
                 Log.e("TTS", "Initialization failed")
-                onError("TTSの初期化に失敗しました")
+                onError(-1, "TTSの初期化に失敗しました")
             }
         }
     }
@@ -42,40 +52,67 @@ class TextToSpeechManager(
     private fun setupListener() {
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {
-                onStart()
+                val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
+                onStart(index)
             }
 
             override fun onDone(utteranceId: String?) {
-                onDone()
+                val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
+                onDone(index)
+                // 次のチャンクへ
+                playNext()
             }
 
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) {
-                onError("再生中にエラーが発生しました")
+                val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
+                onError(index, "再生中にエラーが発生しました")
             }
 
             override fun onError(utteranceId: String?, errorCode: Int) {
-                onError("再生中にエラーが発生しました (code: $errorCode)")
+                val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
+                onError(index, "再生中にエラーが発生しました (code: $errorCode)")
             }
         })
     }
 
-    fun speak(text: String, startPosition: Int = 0) {
-        if (text.isBlank()) return
+    /**
+     * 指定したチャンクリストを順番に読み上げる
+     */
+    fun speakChunks(newChunks: List<String>, startIndex: Int = 0) {
+        if (newChunks.isEmpty()) return
         
-        // TODO: 将来的に startPosition を使用して正確な続きからの再生を実装する
-        val textToSpeak = if (startPosition > 0 && startPosition < text.length) {
-            text.substring(startPosition)
-        } else {
-            text
-        }
+        chunks = newChunks
+        currentChunkIndex = startIndex
 
         if (!isInitialized) {
-            pendingAction = { speak(text, startPosition) }
+            pendingAction = { speakChunks(newChunks, startIndex) }
             return
         }
         
-        tts?.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, null, "OndokuAppID")
+        playCurrent()
+    }
+
+    private fun playCurrent() {
+        if (currentChunkIndex < 0 || currentChunkIndex >= chunks.size) {
+            return
+        }
+
+        var text = chunks[currentChunkIndex]
+        
+        // ユーザー辞書の適用
+        userDictionary.forEach { (from, to) ->
+            text = text.replace(from, to)
+        }
+
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, currentChunkIndex.toString())
+    }
+
+    private fun playNext() {
+        if (currentChunkIndex < chunks.size - 1) {
+            currentChunkIndex++
+            playCurrent()
+        }
     }
 
     fun applySettings(settings: SpeechSettings) {
@@ -86,28 +123,12 @@ class TextToSpeechManager(
         }
     }
 
-    fun setPitch(pitch: Float) {
-        currentSettings = currentSettings.copy(pitch = pitch)
-        if (isInitialized) {
-            tts?.setPitch(pitch)
-        }
-    }
-
-    fun setSpeechRate(speed: Float) {
-        currentSettings = currentSettings.copy(speed = speed)
-        if (isInitialized) {
-            tts?.setSpeechRate(speed)
-        }
-    }
-
     fun pause() {
-        // Android TTS does not have a native pause. Treat as stop.
         stop()
     }
 
     fun stop() {
         tts?.stop()
-        onDone() // 手動停止時も完了扱いにしてUIを戻す
     }
 
     fun shutdown() {
