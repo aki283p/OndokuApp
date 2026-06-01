@@ -11,6 +11,7 @@ import com.example.ondokuapp.model.AppDatabase
 import com.example.ondokuapp.model.Novel
 import com.example.ondokuapp.repository.NovelImportRepository
 import com.example.ondokuapp.repository.NovelRepository
+import com.example.ondokuapp.repository.SettingsRepository
 import com.example.ondokuapp.settings.SpeechSettings
 import com.example.ondokuapp.speech.TextToSpeechManager
 import com.example.ondokuapp.util.TextCleaner
@@ -26,6 +27,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
     private val repository = NovelRepository(db.novelDao())
     private val importRepository = NovelImportRepository()
+    private val settingsRepository = SettingsRepository(application)
     
     private val ttsManager = TextToSpeechManager(
         context = application,
@@ -44,6 +46,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         },
         onError = { _, _ -> isSpeaking = false }
     )
+
+    // 読み上げ状態
+    var speechSettings by mutableStateOf(SpeechSettings())
+        private set
+
+    init {
+        // 保存済み設定の読み込み
+        val savedSettings = settingsRepository.loadSpeechSettings()
+        speechSettings = savedSettings
+        ttsManager.applySettings(savedSettings)
+    }
 
     // 本棚の表示用State
     var searchQuery by mutableStateOf("")
@@ -70,8 +83,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 読み上げ状態
-    var speechSettings by mutableStateOf(SpeechSettings())
-        private set
     var isSpeaking by mutableStateOf(false)
         private set
     var currentChunks by mutableStateOf<List<String>>(emptyList())
@@ -163,6 +174,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateSpeechSettings(settings: SpeechSettings) {
         speechSettings = settings
         ttsManager.applySettings(settings)
+        settingsRepository.saveSpeechSettings(settings)
     }
 
     fun startSpeaking(novel: Novel, fromStart: Boolean = false) {
