@@ -34,8 +34,10 @@ class NovelImportRepository {
             val h1 = doc.select("h1").firstOrNull()?.text()
             val h2 = doc.select("h2").firstOrNull()?.text()
             
-            val title = (if (ogTitle.isNotBlank()) ogTitle else if (docTitle.isNotBlank()) docTitle else h1 ?: h2 ?: "無題").trim()
-            
+            var title = (if (ogTitle.isNotBlank()) ogTitle else if (docTitle.isNotBlank()) docTitle else h1 ?: h2 ?: "無題").trim()
+            title = title.substringBefore(" - ").substringBefore(" | ").trim()
+            if (title.isBlank()) title = "無題"
+
             // 本文抽出の優先度
             val contentSelectors = arrayOf(
                 "article", "main", 
@@ -47,21 +49,48 @@ class NovelImportRepository {
             var bestElement = doc.body()
             for (selector in contentSelectors) {
                 val found = doc.select(selector).firstOrNull()
-                if (found != null && found.text().length > 100) {
+                if (found != null && found.text().length > 200) {
                     bestElement = found
                     break
                 }
             }
 
-            val rawContent = bestElement.text()
-            val cleanedContent = TextCleaner.clean(rawContent)
+            // 改行構造を保持して抽出
+            var cleanedContent = TextCleaner.cleanHtml(bestElement)
+            
+            // 抽出結果が極端に短い場合は body 全体から text() でフォールバックを試みる
+            if (cleanedContent.length < 50 && bestElement.tagName() != "body") {
+                val fallback = TextCleaner.cleanHtml(doc.body())
+                if (fallback.length > cleanedContent.length) {
+                    cleanedContent = fallback
+                }
+            }
             
             if (cleanedContent.length < 10) {
                 return@withContext Result.failure(Exception("本文の抽出に失敗したか、内容が短すぎます。"))
             }
 
+            // 品質チェック：同じ行が極端に連続している場合の簡易的な整理
+            val lines = cleanedContent.lines()
+            val dedupedLines = mutableListOf<String>()
+            var lastLine = ""
+            var repeatCount = 0
+            for (line in lines) {
+                if (line == lastLine && line.isNotBlank()) {
+                    repeatCount++
+                    if (repeatCount < 3) { // 3回以上の連続は無視する
+                        dedupedLines.add(line)
+                    }
+                } else {
+                    dedupedLines.add(line)
+                    lastLine = line
+                    repeatCount = 0
+                }
+            }
+            cleanedContent = dedupedLines.joinToString("\n")
+
             Result.success(Novel(
-                title = title.substringBefore(" - ").substringBefore(" | ").trim(),
+                title = title,
                 content = cleanedContent,
                 sourceUrl = url
             ))
