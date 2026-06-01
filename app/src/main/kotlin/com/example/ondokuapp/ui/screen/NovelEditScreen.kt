@@ -7,14 +7,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.ondokuapp.MainViewModel
+import com.example.ondokuapp.R
 import com.example.ondokuapp.model.Novel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,13 +37,16 @@ fun NovelEditScreen(
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
 
+    // 新規保存または更新が可能かどうかの判定
+    val canSave = content.isNotBlank() && (novel != null || url.isNotBlank())
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (novel == null) "小説の追加" else "小説の編集") },
+                title = { Text(if (novel == null) stringResource(R.string.add_novel) else stringResource(R.string.edit_novel)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
                     }
                 },
                 actions = {
@@ -49,9 +55,9 @@ fun NovelEditScreen(
                             viewModel.upsertNovel(title, content, novel?.id ?: 0L, url)
                             onBack()
                         },
-                        enabled = content.isNotBlank() && !viewModel.isImporting
+                        enabled = canSave && !viewModel.isImporting
                     ) {
-                        Text("保存")
+                        Text(stringResource(R.string.save))
                     }
                 }
             )
@@ -71,25 +77,25 @@ fun NovelEditScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Webから取り込む", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.import_from_web), style = MaterialTheme.typography.titleSmall)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = url,
                             onValueChange = { url = it },
-                            label = { Text("小説のURL") },
+                            label = { Text(stringResource(R.string.source_url)) },
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
                         IconButton(onClick = {
                             clipboardManager.getText()?.text?.let { url = it }
                         }) {
-                            Icon(Icons.Default.ContentPaste, contentDescription = "貼り付け")
+                            Icon(Icons.Default.ContentPaste, contentDescription = stringResource(R.string.paste_url))
                         }
                     }
                     Button(
                         onClick = {
                             viewModel.importFromUrl(url) { t, c ->
-                                if (content.isNotBlank() || title.isNotBlank()) {
+                                if (content.isNotBlank()) {
                                     pendingImportData = t to c
                                     showOverwriteDialog = true
                                 } else {
@@ -106,7 +112,7 @@ fun NovelEditScreen(
                         } else {
                             Icon(Icons.Default.Download, null)
                             Spacer(Modifier.width(8.dp))
-                            Text("URLから取得")
+                            Text(stringResource(R.string.import_from_url))
                         }
                     }
                     viewModel.importError?.let {
@@ -115,35 +121,67 @@ fun NovelEditScreen(
                 }
             }
 
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("タイトル (空の場合は本文冒頭から生成)") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (content.isNotBlank()) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("タイトル") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
 
-            Column {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("本文", style = MaterialTheme.typography.titleSmall)
-                    TextButton(onClick = { content = viewModel.cleanText(content) }) {
-                        Icon(Icons.Default.Translate, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("本文を整形")
+                // 本文プレビュー (読み取り専用)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        stringResource(R.string.content_preview),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = content.take(500),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 10,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (content.length > 500) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    stringResource(R.string.preview_note),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
                     }
                 }
-                OutlinedTextField(
-                    value = content,
-                    onValueChange = { content = it },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp)
-                )
+            } else {
+                // 未取得時のガイド
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        stringResource(R.string.error_import_required),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
         }
 
         if (showOverwriteDialog) {
             AlertDialog(
                 onDismissRequest = { showOverwriteDialog = false },
-                title = { Text("上書きの確認") },
-                text = { Text("入力済みのタイトルまたは本文があります。取得した内容で上書きしてもよろしいですか？") },
+                title = { Text(stringResource(R.string.confirm_overwrite)) },
+                text = { Text("取得した新しい内容でタイトルと本文を更新します。よろしいですか？") },
                 confirmButton = {
                     TextButton(onClick = {
                         pendingImportData?.let { (t, c) ->
@@ -152,12 +190,12 @@ fun NovelEditScreen(
                         }
                         showOverwriteDialog = false
                     }) {
-                        Text("上書き")
+                        Text(stringResource(R.string.save))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showOverwriteDialog = false }) {
-                        Text("キャンセル")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             )

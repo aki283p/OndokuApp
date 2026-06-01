@@ -15,11 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ondokuapp.MainViewModel
+import com.example.ondokuapp.R
 import com.example.ondokuapp.SortOrder
 import com.example.ondokuapp.model.Novel
 import java.text.SimpleDateFormat
@@ -46,7 +48,7 @@ fun NovelListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
-                Icon(Icons.Default.Add, contentDescription = "小説を追加")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_novel))
             }
         }
     ) { innerPadding ->
@@ -100,7 +102,7 @@ private fun BookshelfTopBar(
     var showMoreMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
-        title = { Text("本棚", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.bookshelf), fontWeight = FontWeight.Bold) },
         actions = {
             IconButton(onClick = { viewModel.toggleFavoriteFilter() }) {
                 Icon(
@@ -193,7 +195,7 @@ private fun EmptyBookshelfMessage(isSearchActive: Boolean) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = if (isSearchActive) "該当する小説が見つかりません" else "小説が登録されていません",
+                text = if (isSearchActive) stringResource(R.string.empty_search_result) else stringResource(R.string.empty_bookshelf),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.outline
             )
@@ -238,6 +240,20 @@ private fun NovelListItem(
                             "Web",
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            "手入力",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

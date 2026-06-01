@@ -1,8 +1,8 @@
 <resources>
     <string name="app_name">聴く小説 - OndokuApp</string>
     <string name="bookshelf">本棚</string>
-    <string name="add_novel">小説を追加</string>
-    <string name="edit_novel">小説を編集</string>
+    <string name="add_novel">Web小説を追加</string>
+    <string name="edit_novel">小説情報</string>
     <string name="delete_novel">小説の削除</string>
     <string name="dictionary">読み替え辞書</string>
     <string name="settings">設定</string>
@@ -11,13 +11,16 @@
     <string name="playback_pitch">ピッチ</string>
     <string name="sleep_timer">スリープタイマー</string>
     <string name="search_hint">タイトルや本文で検索&#8230;</string>
-    <string name="empty_bookshelf">小説が登録されていません</string>
+    <string name="empty_bookshelf">URLを指定してWeb小説を追加してください</string>
     <string name="empty_search_result">該当する小説が見つかりません</string>
     <string name="save">保存</string>
     <string name="cancel">キャンセル</string>
     <string name="delete">削除</string>
     <string name="import_from_web">Webから取り込む</string>
     <string name="import_from_url">URLから取得</string>
+    <string name="source_url">取得元URL</string>
+    <string name="content_preview">本文プレビュー</string>
+    <string name="preview_note">※全文は読み上げ画面で確認できます</string>
     <string name="paste_url">貼り付け</string>
     <string name="clean_text">本文を整形</string>
     <string name="play">再生</string>
@@ -25,6 +28,8 @@
     <string name="pause">一時停止</string>
     <string name="stop">停止</string>
     <string name="restart">最初から</string>
-    <string name="error_empty_content">本文を入力してください。</string>
+    <string name="error_empty_content">本文を取得してください。</string>
+    <string name="error_import_required">URLから取得した本文のみ保存できます。</string>
     <string name="confirm_delete">削除しますか？\nこの操作は取り消せません。</string>
+    <string name="confirm_overwrite">既存のタイトルと本文を上書きしますか？</string>
 </resources>

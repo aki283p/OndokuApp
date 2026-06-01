@@ -123,6 +123,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleFavoriteFilter() { showFavoritesOnly = !showFavoritesOnly }
 
     fun upsertNovel(title: String, content: String, id: Long = 0, sourceUrl: String? = null) {
+        if (content.isBlank()) return
+        if (id == 0L && sourceUrl.isNullOrBlank()) return // 新規作成時はURL必須
+
         viewModelScope.launch {
             if (id != 0L) {
                 repository.getNovelById(id)?.let { existing ->
@@ -134,13 +137,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     ))
                 }
             } else {
-                val newTitle = if (title.isBlank()) {
-                    content.take(20).replace("\n", " ")
-                } else {
-                    title
-                }
                 repository.insertNovel(Novel(
-                    title = newTitle,
+                    title = if (title.isBlank()) content.take(20).replace("\n", " ") else title,
                     content = content,
                     sourceUrl = sourceUrl,
                     createdAt = System.currentTimeMillis(),
