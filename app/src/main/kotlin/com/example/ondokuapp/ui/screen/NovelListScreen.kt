@@ -107,43 +107,43 @@ private fun BookshelfTopBar(
             IconButton(onClick = { viewModel.toggleFavoriteFilter() }) {
                 Icon(
                     imageVector = if (viewModel.showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "お気に入りフィルター",
+                    contentDescription = stringResource(R.string.favorite_filter),
                     tint = if (viewModel.showFavoritesOnly) Color.Red else LocalContentColor.current
                 )
             }
             IconButton(onClick = { showSortMenu = true }) {
-                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "並び替え")
+                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
             }
             DropdownMenu(
                 expanded = showSortMenu,
                 onDismissRequest = { showSortMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("更新日順") },
+                    text = { Text(stringResource(R.string.sort_updated_at)) },
                     onClick = { viewModel.updateSortOrder(SortOrder.UPDATED_AT); showSortMenu = false },
                     leadingIcon = { if (viewModel.sortOrder == SortOrder.UPDATED_AT) Icon(Icons.Default.Check, null) }
                 )
                 DropdownMenuItem(
-                    text = { Text("最終再生日順") },
+                    text = { Text(stringResource(R.string.sort_last_read_at)) },
                     onClick = { viewModel.updateSortOrder(SortOrder.LAST_READ_AT); showSortMenu = false },
                     leadingIcon = { if (viewModel.sortOrder == SortOrder.LAST_READ_AT) Icon(Icons.Default.Check, null) }
                 )
                 DropdownMenuItem(
-                    text = { Text("タイトル順") },
+                    text = { Text(stringResource(R.string.sort_title)) },
                     onClick = { viewModel.updateSortOrder(SortOrder.TITLE); showSortMenu = false },
                     leadingIcon = { if (viewModel.sortOrder == SortOrder.TITLE) Icon(Icons.Default.Check, null) }
                 )
             }
             
             IconButton(onClick = { showMoreMenu = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "メニュー")
+                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.menu))
             }
             DropdownMenu(
                 expanded = showMoreMenu,
                 onDismissRequest = { showMoreMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("読み替え辞書") },
+                    text = { Text(stringResource(R.string.dictionary)) },
                     onClick = { onOpenDictionary(); showMoreMenu = false },
                     leadingIcon = { Icon(Icons.Default.Spellcheck, null) }
                 )
@@ -159,7 +159,7 @@ private fun BookshelfSearchAndFilters(
     OutlinedTextField(
         value = viewModel.searchQuery,
         onValueChange = { viewModel.updateSearchQuery(it) },
-        placeholder = { Text("タイトルや本文で検索...", style = MaterialTheme.typography.bodyMedium) },
+        placeholder = { Text(stringResource(R.string.search_hint), style = MaterialTheme.typography.bodyMedium) },
         leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp)) },
         trailingIcon = {
             if (viewModel.searchQuery.isNotEmpty()) {
@@ -201,9 +201,11 @@ private fun EmptyBookshelfMessage(isSearchActive: Boolean) {
             )
             if (!isSearchActive) {
                 Text(
-                    text = "右下の＋ボタンから追加してください",
+                    text = stringResource(R.string.empty_bookshelf_guide),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.outline,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 32.dp)
                 )
             }
         }
@@ -220,7 +222,7 @@ private fun NovelListItem(
 ) {
     val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()) }
     val updateDateText = dateFormat.format(Date(novel.updatedAt))
-    val lastReadDateText = novel.lastReadAt?.let { dateFormat.format(Date(it)) } ?: "未再生"
+    val lastReadDateText = novel.lastReadAt?.let { dateFormat.format(Date(it)) }
     
     var showMenu by remember { mutableStateOf(false) }
 
@@ -237,7 +239,7 @@ private fun NovelListItem(
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            "Web",
+                            stringResource(R.string.web_source_badge),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
@@ -251,7 +253,7 @@ private fun NovelListItem(
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            "手入力",
+                            stringResource(R.string.no_source_badge),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -285,12 +287,15 @@ private fun NovelListItem(
                 ) {
                     Column {
                         Text(
-                            text = "更新: $updateDateText",
+                            text = stringResource(R.string.label_updated, updateDateText),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.outline
                         )
                         Text(
-                            text = "再生: $lastReadDateText",
+                            text = stringResource(
+                                R.string.label_last_read,
+                                lastReadDateText ?: stringResource(R.string.label_not_read)
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (novel.lastReadAt != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                         )
@@ -303,7 +308,7 @@ private fun NovelListItem(
                             modifier = Modifier.padding(start = 8.dp)
                         ) {
                             Text(
-                                text = "読みかけ",
+                                text = stringResource(R.string.reading_status_in_progress),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -318,7 +323,7 @@ private fun NovelListItem(
                 IconButton(onClick = onFavoriteToggle) {
                     Icon(
                         imageVector = if (novel.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "お気に入り",
+                        contentDescription = stringResource(R.string.favorite_filter),
                         tint = if (novel.isFavorite) Color.Red else MaterialTheme.colorScheme.outline,
                         modifier = Modifier.size(22.dp)
                     )
@@ -327,7 +332,7 @@ private fun NovelListItem(
                     IconButton(onClick = { showMenu = true }) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "操作",
+                            contentDescription = stringResource(R.string.actions),
                             tint = MaterialTheme.colorScheme.outline
                         )
                     }
@@ -336,12 +341,12 @@ private fun NovelListItem(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("編集") },
+                            text = { Text(stringResource(R.string.edit)) },
                             onClick = { onEditClick(); showMenu = false },
                             leadingIcon = { Icon(Icons.Default.Edit, null) }
                         )
                         DropdownMenuItem(
-                            text = { Text("削除", color = MaterialTheme.colorScheme.error) },
+                            text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                             onClick = { onDeleteClick(); showMenu = false },
                             leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
                         )
@@ -360,16 +365,16 @@ private fun DeleteConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("小説の削除") },
-        text = { Text("「$novelTitle」を本棚から削除しますか？\nこの操作は取り消せません。") },
+        title = { Text(stringResource(R.string.delete_novel)) },
+        text = { Text("「$novelTitle」" + stringResource(R.string.confirm_delete)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("削除", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("キャンセル")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

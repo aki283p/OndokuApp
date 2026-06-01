@@ -125,17 +125,28 @@ fun NovelEditScreen(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("タイトル") },
+                    label = { Text(stringResource(R.string.novel_title)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
 
                 // 本文プレビュー (読み取り専用)
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.content_preview),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
-                        stringResource(R.string.content_preview),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        stringResource(R.string.manual_input_not_available),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
@@ -181,7 +192,7 @@ fun NovelEditScreen(
             AlertDialog(
                 onDismissRequest = { showOverwriteDialog = false },
                 title = { Text(stringResource(R.string.confirm_overwrite)) },
-                text = { Text("取得した新しい内容でタイトルと本文を更新します。よろしいですか？") },
+                text = { Text(stringResource(R.string.confirm_overwrite_message)) },
                 confirmButton = {
                     TextButton(onClick = {
                         pendingImportData?.let { (t, c) ->

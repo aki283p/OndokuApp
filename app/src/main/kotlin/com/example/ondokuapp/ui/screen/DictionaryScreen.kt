@@ -13,8 +13,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.ondokuapp.MainViewModel
+import com.example.ondokuapp.R
 import com.example.ondokuapp.model.UserDictionaryEntry
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,17 +32,17 @@ fun DictionaryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("読み替え辞書") },
+                title = { Text(stringResource(R.string.dictionary)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "追加")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
             }
         }
     ) { innerPadding ->
@@ -60,12 +62,12 @@ fun DictionaryScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "辞書が空です",
+                        text = stringResource(R.string.dictionary_empty),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.outline
                     )
                     Text(
-                        text = "右下の＋ボタンから追加してください",
+                        text = stringResource(R.string.dictionary_empty_guide),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -108,8 +110,8 @@ fun DictionaryScreen(
         entryToDelete?.let { entry ->
             AlertDialog(
                 onDismissRequest = { entryToDelete = null },
-                title = { Text("読み替えを削除") },
-                text = { Text("「${entry.from} → ${entry.to}」を削除しますか？") },
+                title = { Text(stringResource(R.string.delete_dictionary_entry)) },
+                text = { Text(stringResource(R.string.confirm_delete_dictionary_entry, entry.from, entry.to)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -117,12 +119,12 @@ fun DictionaryScreen(
                             entryToDelete = null
                         }
                     ) {
-                        Text("削除", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { entryToDelete = null }) {
-                        Text("キャンセル")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             )
@@ -142,10 +144,10 @@ fun DictionaryItem(
         trailingContent = {
             Row {
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "編集")
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "削除")
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
                 }
             }
         }
@@ -163,20 +165,20 @@ fun DictionaryEntryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (entry == null) "辞書の追加" else "辞書の編集") },
+        title = { Text(if (entry == null) stringResource(R.string.add_dictionary_entry) else stringResource(R.string.edit_dictionary_entry)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = from,
                     onValueChange = { from = it },
-                    label = { Text("表記 (置換前)") },
+                    label = { Text(stringResource(R.string.label_from)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = to,
                     onValueChange = { to = it },
-                    label = { Text("読み (置換後)") },
+                    label = { Text(stringResource(R.string.label_to)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -187,12 +189,12 @@ fun DictionaryEntryDialog(
                 onClick = { onConfirm(from, to) },
                 enabled = from.trim().isNotBlank() && to.trim().isNotBlank()
             ) {
-                Text("確定")
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("キャンセル")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

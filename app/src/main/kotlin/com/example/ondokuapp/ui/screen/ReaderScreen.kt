@@ -18,10 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ondokuapp.MainViewModel
+import com.example.ondokuapp.R
 import com.example.ondokuapp.model.Novel
 import com.example.ondokuapp.util.TextCleaner
 
@@ -106,7 +108,7 @@ private fun ReaderTopBar(
         },
         navigationIcon = {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
             }
         },
         actions = {
@@ -119,13 +121,13 @@ private fun ReaderTopBar(
                             }
                         }
                     ) {
-                        Icon(Icons.Default.Timer, contentDescription = "スリープタイマー")
+                        Icon(Icons.Default.Timer, contentDescription = stringResource(R.string.sleep_timer))
                     }
                 }
                 DropdownMenu(expanded = showTimerMenu, onDismissRequest = { showTimerMenu = false }) {
                     listOf(0, 5, 10, 15, 30, 60).forEach { mins ->
                         DropdownMenuItem(
-                            text = { Text(if (mins == 0) "オフ" else "${mins}分") },
+                            text = { Text(if (mins == 0) stringResource(R.string.off) else stringResource(R.string.minutes, mins)) },
                             onClick = { onSetTimer(mins); showTimerMenu = false }
                         )
                     }
@@ -237,9 +239,9 @@ private fun ReadingProgress(
     val progress = if (totalCount > 0) (currentIndex + 1).toFloat() / totalCount else 0f
     
     val statusText = when {
-        isSpeaking -> "再生中"
-        hasProgress -> "一時停止中"
-        else -> "未再生"
+        isSpeaking -> stringResource(R.string.status_playing)
+        hasProgress -> stringResource(R.string.status_paused)
+        else -> stringResource(R.string.label_not_read)
     }
     
     val countText = if (totalCount > 0) {
@@ -299,7 +301,7 @@ private fun PlaybackControls(
         ) {
             Icon(
                 imageVector = if (showSettings) Icons.Default.SettingsApplications else Icons.Default.Settings,
-                contentDescription = if (showSettings) "設定を閉じる" else "設定を開く"
+                contentDescription = if (showSettings) stringResource(R.string.close_settings) else stringResource(R.string.open_settings)
             )
         }
 
@@ -309,7 +311,7 @@ private fun PlaybackControls(
             modifier = Modifier.size(48.dp),
             enabled = isSpeaking || hasProgress
         ) {
-            Icon(Icons.Default.Stop, contentDescription = "停止")
+            Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop))
         }
 
         // 再生 / 一時停止ボタン (メイン)
@@ -322,7 +324,7 @@ private fun PlaybackControls(
             ) {
                 Icon(Icons.Default.Pause, null)
                 Spacer(Modifier.width(8.dp))
-                Text("一時停止")
+                Text(stringResource(R.string.pause))
             }
         } else {
             Button(
@@ -333,7 +335,7 @@ private fun PlaybackControls(
             ) {
                 Icon(if (hasProgress) Icons.Default.PlayArrow else Icons.Default.PlayArrow, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (hasProgress) "続きから" else "再生")
+                Text(if (hasProgress) stringResource(R.string.resume) else stringResource(R.string.play))
             }
         }
 
@@ -343,7 +345,7 @@ private fun PlaybackControls(
                 onClick = onRestart,
                 modifier = Modifier.size(48.dp)
             ) {
-                Icon(Icons.Default.Replay, contentDescription = "最初から再生")
+                Icon(Icons.Default.Replay, contentDescription = stringResource(R.string.restart))
             }
         } else {
             Spacer(modifier = Modifier.size(48.dp))
@@ -365,7 +367,7 @@ private fun SpeechSettingsPanel(
         HorizontalDivider(modifier = Modifier.padding(bottom = 16.dp))
         
         Text(
-            text = "読み上げ設定",
+            text = stringResource(R.string.reading_settings),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -373,7 +375,7 @@ private fun SpeechSettingsPanel(
         )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("速度: ${"%.1f".format(speed)}x", style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
+            Text(stringResource(R.string.label_speed, speed), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(96.dp))
             Slider(
                 value = speed,
                 onValueChange = { onSettingsChange(com.example.ondokuapp.settings.SpeechSettings(speed = it, pitch = pitch)) },
@@ -383,7 +385,7 @@ private fun SpeechSettingsPanel(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("ピッチ: ${"%.1f".format(pitch)}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
+            Text(stringResource(R.string.label_pitch, pitch), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(96.dp))
             Slider(
                 value = pitch,
                 onValueChange = { onSettingsChange(com.example.ondokuapp.settings.SpeechSettings(speed = speed, pitch = it)) },
