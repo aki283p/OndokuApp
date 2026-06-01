@@ -28,6 +28,9 @@ fun NovelEditScreen(
     var content by remember { mutableStateOf(novel?.content ?: "") }
     var url by remember { mutableStateOf(novel?.sourceUrl ?: "") }
     
+    var showOverwriteDialog by remember { mutableStateOf(false) }
+    var pendingImportData by remember { mutableStateOf<Pair<String, String>?>(null) }
+
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
 
@@ -86,8 +89,13 @@ fun NovelEditScreen(
                     Button(
                         onClick = {
                             viewModel.importFromUrl(url) { t, c ->
-                                title = t
-                                content = c
+                                if (content.isNotBlank() || title.isNotBlank()) {
+                                    pendingImportData = t to c
+                                    showOverwriteDialog = true
+                                } else {
+                                    title = t
+                                    content = c
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -129,6 +137,30 @@ fun NovelEditScreen(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp)
                 )
             }
+        }
+
+        if (showOverwriteDialog) {
+            AlertDialog(
+                onDismissRequest = { showOverwriteDialog = false },
+                title = { Text("上書きの確認") },
+                text = { Text("入力済みのタイトルまたは本文があります。取得した内容で上書きしてもよろしいですか？") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        pendingImportData?.let { (t, c) ->
+                            title = t
+                            content = c
+                        }
+                        showOverwriteDialog = false
+                    }) {
+                        Text("上書き")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOverwriteDialog = false }) {
+                        Text("キャンセル")
+                    }
+                }
+            )
         }
     }
 }

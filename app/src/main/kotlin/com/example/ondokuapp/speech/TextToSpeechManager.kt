@@ -61,7 +61,9 @@ class TextToSpeechManager(
                 if (isStoppedManually) return
                 
                 val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
+                // 現在のチャンク完了を通知
                 onDone(index)
+                
                 // 次のチャンクへ
                 playNext()
             }
@@ -127,10 +129,8 @@ class TextToSpeechManager(
         if (currentChunkIndex < chunks.size - 1) {
             currentChunkIndex++
             playCurrent()
-        } else {
-            // 全チャンク完了
-            onDone(currentChunkIndex)
         }
+        // 最後のチャンクの場合は、setupListener の onDone で onDone が呼ばれるためここでは何もしない
     }
 
     fun applySettings(settings: SpeechSettings) {
