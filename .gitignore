@@ -36,9 +36,3 @@ captures/
 *.hprof.gz
 hs_err_pid*
 replay_pid*
-
-# JVM / Android Studio crash or heap dump files
-*.hprof
-*.hprof.gz
-hs_err_pid*
-replay_pid*

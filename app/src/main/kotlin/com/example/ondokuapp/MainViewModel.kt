@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ondokuapp.model.AppDatabase
 import com.example.ondokuapp.model.Novel
+import com.example.ondokuapp.repository.NovelRepository
 import com.example.ondokuapp.settings.SpeechSettings
 import com.example.ondokuapp.speech.TextToSpeechManager
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,10 +18,16 @@ import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
-    private val novelDao = db.novelDao()
-    private val ttsManager = TextToSpeechManager(application)
+    private val repository = NovelRepository(db.novelDao())
+    
+    private val ttsManager = TextToSpeechManager(
+        context = application,
+        onStart = { isSpeaking = true },
+        onDone = { isSpeaking = false },
+        onError = { isSpeaking = false }
+    )
 
-    val novels: StateFlow<List<Novel>> = novelDao.getAllNovels()
+    val novels: StateFlow<List<Novel>> = repository.allNovels
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     var speechSettings by mutableStateOf(SpeechSettings())
@@ -31,28 +38,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun upsertNovel(title: String, content: String, id: Long = 0) {
         viewModelScope.launch {
-            val novel = if (id != 0L) {
-                novelDao.getNovelById(id)?.copy(
-                    title = title,
-                    content = content,
-                    updatedAt = System.currentTimeMillis()
-                )
+            if (id != 0L) {
+                repository.getNovelById(id)?.let { existing ->
+                    repository.updateNovel(existing.copy(
+                        title = title,
+                        content = content,
+                        updatedAt = System.currentTimeMillis()
+                    ))
+                }
             } else {
-                Novel(
-                    title = if (title.isBlank()) content.take(20).replace("\n", " ") else title,
+                val newTitle = if (title.isBlank()) {
+                    content.take(20).replace("\n", " ")
+                } else {
+                    title
+                }
+                repository.insertNovel(Novel(
+                    title = newTitle,
                     content = content
-                )
-            }
-            novel?.let {
-                if (it.id != 0L) novelDao.updateNovel(it)
-                else novelDao.insertNovel(it)
+                ))
             }
         }
     }
 
     fun deleteNovel(novel: Novel) {
         viewModelScope.launch {
-            novelDao.deleteNovel(novel)
+            repository.deleteNovel(novel)
         }
     }
 
@@ -62,23 +72,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startSpeaking(novel: Novel) {
-        isSpeaking = true
+        // isSpeaking は ttsManager のコールバックで true になる
         ttsManager.speak(novel.content, novel.currentPosition)
         
         // Update last read time
         viewModelScope.launch {
-            novelDao.updateNovel(novel.copy(lastReadAt = System.currentTimeMillis()))
+            repository.updateNovel(novel.copy(lastReadAt = System.currentTimeMillis()))
         }
     }
 
     fun pauseSpeaking() {
         // 現在は疑似一時停止（停止して次回は最初または指定位置から再生）
-        isSpeaking = false
+        // isSpeaking は ttsManager のコールバックで false になる
         ttsManager.pause()
     }
 
     fun stopSpeaking() {
-        isSpeaking = false
+        // isSpeaking は ttsManager のコールバックで false になる
         ttsManager.stop()
     }
 
