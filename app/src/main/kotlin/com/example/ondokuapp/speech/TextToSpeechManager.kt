@@ -4,6 +4,7 @@ import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import com.example.ondokuapp.model.UserDictionaryEntry
 import com.example.ondokuapp.settings.SpeechSettings
 import java.util.Locale
 
@@ -22,12 +23,8 @@ class TextToSpeechManager(
     private var currentChunkIndex: Int = 0
     private var isStoppedManually: Boolean = false
 
-    // 簡易ユーザー辞書
-    private val userDictionary = mapOf(
-        "異世界" to "いせかい",
-        "魔王" to "まおう",
-        "勇者" to "ゆうしゃ"
-    )
+    // ユーザー辞書
+    private var userDictionary: List<UserDictionaryEntry> = emptyList()
 
     init {
         tts = TextToSpeech(context) { status ->
@@ -116,11 +113,15 @@ class TextToSpeechManager(
         }
         
         // ユーザー辞書の適用
-        userDictionary.forEach { (from, to) ->
-            text = text.replace(from, to)
+        userDictionary.forEach { entry ->
+            text = text.replace(entry.from, entry.to)
         }
 
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, currentChunkIndex.toString())
+    }
+
+    fun updateDictionary(entries: List<UserDictionaryEntry>) {
+        userDictionary = entries
     }
 
     private fun playNext() {

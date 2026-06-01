@@ -31,7 +31,8 @@ fun NovelListScreen(
     viewModel: MainViewModel,
     onNovelClick: (Novel) -> Unit,
     onAddClick: () -> Unit,
-    onEditClick: (Novel) -> Unit
+    onEditClick: (Novel) -> Unit,
+    onOpenDictionary: () -> Unit
 ) {
     val novels by viewModel.novels.collectAsState()
     var novelToDelete by remember { mutableStateOf<Novel?>(null) }
@@ -39,7 +40,8 @@ fun NovelListScreen(
     Scaffold(
         topBar = {
             BookshelfTopBar(
-                viewModel = viewModel
+                viewModel = viewModel,
+                onOpenDictionary = onOpenDictionary
             )
         },
         floatingActionButton = {
@@ -91,9 +93,11 @@ fun NovelListScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BookshelfTopBar(
-    viewModel: MainViewModel
+    viewModel: MainViewModel,
+    onOpenDictionary: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
         title = { Text("本棚", fontWeight = FontWeight.Bold) },
@@ -126,6 +130,20 @@ private fun BookshelfTopBar(
                     text = { Text("タイトル順") },
                     onClick = { viewModel.updateSortOrder(SortOrder.TITLE); showSortMenu = false },
                     leadingIcon = { if (viewModel.sortOrder == SortOrder.TITLE) Icon(Icons.Default.Check, null) }
+                )
+            }
+            
+            IconButton(onClick = { showMoreMenu = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "メニュー")
+            }
+            DropdownMenu(
+                expanded = showMoreMenu,
+                onDismissRequest = { showMoreMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("読み替え辞書") },
+                    onClick = { onOpenDictionary(); showMoreMenu = false },
+                    leadingIcon = { Icon(Icons.Default.Spellcheck, null) }
                 )
             }
         }

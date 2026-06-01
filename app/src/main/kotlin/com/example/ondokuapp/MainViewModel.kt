@@ -9,6 +9,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ondokuapp.model.AppDatabase
 import com.example.ondokuapp.model.Novel
+import com.example.ondokuapp.model.UserDictionaryEntry
+import com.example.ondokuapp.repository.DictionaryRepository
 import com.example.ondokuapp.repository.NovelImportRepository
 import com.example.ondokuapp.repository.NovelRepository
 import com.example.ondokuapp.repository.SettingsRepository
@@ -28,6 +30,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = NovelRepository(db.novelDao())
     private val importRepository = NovelImportRepository()
     private val settingsRepository = SettingsRepository(application)
+    private val dictionaryRepository = DictionaryRepository(application)
     
     private val ttsManager = TextToSpeechManager(
         context = application,
@@ -51,11 +54,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var speechSettings by mutableStateOf(SpeechSettings())
         private set
 
+    // ユーザー辞書
+    var dictionaryEntries by mutableStateOf<List<UserDictionaryEntry>>(emptyList())
+        private set
+
     init {
         // 保存済み設定の読み込み
         val savedSettings = settingsRepository.loadSpeechSettings()
         speechSettings = savedSettings
         ttsManager.applySettings(savedSettings)
+
+        // 辞書の読み込み
+        var entries = dictionaryRepository.loadEntries()
+        if (entries.isEmpty()) {
+            entries = dictionaryRepository.getInitialEntries()
+            dictionaryRepository.saveEntries(entries)
+        }
+        dictionaryEntries = entries
+        ttsManager.updateDictionary(entries)
     }
 
     // 本棚の表示用State
@@ -175,6 +191,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         speechSettings = settings
         ttsManager.applySettings(settings)
         settingsRepository.saveSpeechSettings(settings)
+    }
+
+    // 辞書操作
+    fun addDictionaryEntry(from: String, to: String) {
+        val entry = dictionaryRepository.addEntry(from, to)
+        dictionaryEntries = dictionaryRepository.loadEntries()
+        ttsManager.updateDictionary(dictionaryEntries)
+    }
+
+    fun updateDictionaryEntry(entry: UserDictionaryEntry) {
+        dictionaryRepository.updateEntry(entry)
+        dictionaryEntries = dictionaryRepository.loadEntries()
+        ttsManager.updateDictionary(dictionaryEntries)
+    }
+
+    fun deleteDictionaryEntry(entry: UserDictionaryEntry) {
+        dictionaryRepository.deleteEntry(entry)
+        dictionaryEntries = dictionaryRepository.loadEntries()
+        ttsManager.updateDictionary(dictionaryEntries)
     }
 
     fun startSpeaking(novel: Novel, fromStart: Boolean = false) {
