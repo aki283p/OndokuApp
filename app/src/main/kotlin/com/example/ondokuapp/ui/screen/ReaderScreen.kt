@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ondokuapp.MainViewModel
 import com.example.ondokuapp.model.Novel
+import com.example.ondokuapp.util.TextCleaner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,12 +36,17 @@ fun ReaderScreen(
     val currentChunks = viewModel.currentChunks
     val currentChunkIndex = viewModel.currentChunkIndex
     
+    // 表示用のチャンク（ViewModelにまだ入っていない場合は今の本文を分割して使う）
+    val displayChunks = remember(novel.content, currentChunks) {
+        if (currentChunks.isNotEmpty()) currentChunks else TextCleaner.splitIntoChunks(novel.content)
+    }
+
     val listState = rememberLazyListState()
     var showSettings by remember { mutableStateOf(false) }
 
     // 自動スクロール
     LaunchedEffect(currentChunkIndex) {
-        if (isSpeaking && currentChunkIndex >= 0 && currentChunkIndex < currentChunks.size) {
+        if (isSpeaking && currentChunkIndex >= 0 && currentChunkIndex < displayChunks.size) {
             listState.animateScrollToItem(currentChunkIndex)
         }
     }
@@ -63,7 +69,7 @@ fun ReaderScreen(
                 novel = novel,
                 isSpeaking = isSpeaking,
                 currentChunkIndex = currentChunkIndex,
-                totalChunks = currentChunks.size,
+                totalChunks = displayChunks.size,
                 showSettings = showSettings,
                 onToggleSettings = { showSettings = !showSettings }
             )
@@ -72,7 +78,7 @@ fun ReaderScreen(
         ReaderContent(
             modifier = Modifier.padding(innerPadding),
             listState = listState,
-            chunks = if (currentChunks.isNotEmpty()) currentChunks else listOf(novel.content),
+            chunks = displayChunks,
             currentChunkIndex = currentChunkIndex,
             isSpeaking = isSpeaking
         )
@@ -178,7 +184,7 @@ private fun ReaderBottomBar(
     Surface(
         tonalElevation = 8.dp,
         shadowElevation = 8.dp,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -189,10 +195,11 @@ private fun ReaderBottomBar(
             ReadingProgress(
                 currentIndex = currentChunkIndex,
                 totalCount = totalChunks,
-                isVisible = totalChunks > 0
+                isSpeaking = isSpeaking,
+                hasProgress = novel.currentPosition > 0
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             PlaybackControls(
                 isSpeaking = isSpeaking,
@@ -224,12 +231,23 @@ private fun ReaderBottomBar(
 private fun ReadingProgress(
     currentIndex: Int,
     totalCount: Int,
-    isVisible: Boolean
+    isSpeaking: Boolean,
+    hasProgress: Boolean
 ) {
-    if (!isVisible) return
-
     val progress = if (totalCount > 0) (currentIndex + 1).toFloat() / totalCount else 0f
     
+    val statusText = when {
+        isSpeaking -> "再生中"
+        hasProgress -> "一時停止中"
+        else -> "未再生"
+    }
+    
+    val countText = if (totalCount > 0) {
+        if (!isSpeaking && !hasProgress) "0 / $totalCount" else "${currentIndex + 1} / $totalCount"
+    } else {
+        "-- / --"
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -237,22 +255,23 @@ private fun ReadingProgress(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "読み上げ位置",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline
+                text = statusText,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isSpeaking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
             )
             Text(
-                text = "${currentIndex + 1} / $totalCount",
+                text = countText,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         LinearProgressIndicator(
-            progress = { progress.coerceIn(0f, 1f) },
+            progress = { if (!isSpeaking && !hasProgress) 0f else progress.coerceIn(0f, 1f) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = if (isSpeaking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
         )
     }
 }
@@ -270,61 +289,65 @@ private fun PlaybackControls(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onToggleSettings) {
+        // 設定ボタン
+        OutlinedIconButton(
+            onClick = onToggleSettings,
+            modifier = Modifier.size(48.dp)
+        ) {
             Icon(
                 imageVector = if (showSettings) Icons.Default.SettingsApplications else Icons.Default.Settings,
-                contentDescription = "設定",
-                tint = if (showSettings) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                contentDescription = if (showSettings) "設定を閉じる" else "設定を開く"
             )
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        // 停止ボタン
+        OutlinedIconButton(
+            onClick = onStop,
+            modifier = Modifier.size(48.dp),
+            enabled = isSpeaking || hasProgress
         ) {
-            IconButton(onClick = onStop) {
-                Icon(Icons.Default.Stop, contentDescription = "停止")
-            }
+            Icon(Icons.Default.Stop, contentDescription = "停止")
+        }
 
-            if (isSpeaking) {
-                LargeFloatingActionButton(
-                    onClick = onPause,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.Pause, contentDescription = "一時停止", modifier = Modifier.size(36.dp))
-                }
-            } else {
-                FloatingActionButton(
-                    onClick = onStart,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(
-                        imageVector = if (hasProgress) Icons.Default.PlayArrow else Icons.Default.PlayArrow, 
-                        contentDescription = "再生", 
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
+        // 再生 / 一時停止ボタン (メイン)
+        if (isSpeaking) {
+            Button(
+                onClick = onPause,
+                modifier = Modifier.weight(1f).height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Icon(Icons.Default.Pause, null)
+                Spacer(Modifier.width(8.dp))
+                Text("一時停止")
             }
-            
-            if (!isSpeaking && hasProgress) {
-                IconButton(onClick = onRestart) {
-                    Icon(Icons.Default.Replay, contentDescription = "最初から再生")
-                }
-            } else {
-                // バランスのためにダミーのスペースを置くか、単に表示しない
-                Spacer(modifier = Modifier.size(48.dp))
+        } else {
+            Button(
+                onClick = onStart,
+                modifier = Modifier.weight(1f).height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Icon(if (hasProgress) Icons.Default.PlayArrow else Icons.Default.PlayArrow, null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (hasProgress) "続きから" else "再生")
             }
         }
 
-        // 右側のスペース調整用
-        Spacer(modifier = Modifier.size(48.dp))
+        // 最初から再生ボタン
+        if (!isSpeaking && hasProgress) {
+            FilledTonalIconButton(
+                onClick = onRestart,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(Icons.Default.Replay, contentDescription = "最初から再生")
+            }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
+        }
     }
 }
 
@@ -344,11 +367,13 @@ private fun SpeechSettingsPanel(
         Text(
             text = "読み上げ設定",
             style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("速度: ${"%.1f".format(speed)}x", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
+            Text("速度: ${"%.1f".format(speed)}x", style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
             Slider(
                 value = speed,
                 onValueChange = { onSettingsChange(com.example.ondokuapp.settings.SpeechSettings(speed = it, pitch = pitch)) },
@@ -358,7 +383,7 @@ private fun SpeechSettingsPanel(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("ピッチ: ${"%.1f".format(pitch)}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
+            Text("ピッチ: ${"%.1f".format(pitch)}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
             Slider(
                 value = pitch,
                 onValueChange = { onSettingsChange(com.example.ondokuapp.settings.SpeechSettings(speed = speed, pitch = it)) },
