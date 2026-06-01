@@ -23,7 +23,7 @@ class DictionaryRepository(context: Context) {
 
     fun saveEntries(entries: List<UserDictionaryEntry>) {
         val editor = prefs.edit()
-        // Clear old entries (simplified)
+        // Clear all metadata based on current saved IDs
         val oldIds = prefs.getStringSet("entry_ids", emptySet()) ?: emptySet()
         oldIds.forEach { id ->
             editor.remove("$id.from")
@@ -39,20 +39,55 @@ class DictionaryRepository(context: Context) {
         editor.apply()
     }
 
-    fun addEntry(from: String, to: String): UserDictionaryEntry {
-        val id = UUID.randomUUID().toString()
-        val entry = UserDictionaryEntry(id, from, to)
+    fun addEntry(from: String, to: String): UserDictionaryEntry? {
+        val trimmedFrom = from.trim()
+        val trimmedTo = to.trim()
+        
+        if (trimmedFrom.isEmpty() || trimmedTo.isEmpty()) return null
+        
         val current = loadEntries().toMutableList()
-        current.add(entry)
-        saveEntries(current)
-        return entry
+        val existingIndex = current.indexOfFirst { it.from == trimmedFrom }
+        
+        return if (existingIndex != -1) {
+            val updated = current[existingIndex].copy(to = trimmedTo)
+            current[existingIndex] = updated
+            saveEntries(current)
+            updated
+        } else {
+            val id = UUID.randomUUID().toString()
+            val entry = UserDictionaryEntry(id, trimmedFrom, trimmedTo)
+            current.add(entry)
+            saveEntries(current)
+            entry
+        }
     }
 
     fun updateEntry(entry: UserDictionaryEntry) {
-        val current = loadEntries().map {
-            if (it.id == entry.id) entry else it
+        val trimmedFrom = entry.from.trim()
+        val trimmedTo = entry.to.trim()
+        
+        if (trimmedFrom.isEmpty() || trimmedTo.isEmpty()) return
+
+        val current = loadEntries().toMutableList()
+        val index = current.indexOfFirst { it.id == entry.id }
+        
+        if (index != -1) {
+            // Check for duplicate 'from' in other entries
+            val duplicateIndex = current.indexOfFirst { it.from == trimmedFrom && it.id != entry.id }
+            if (duplicateIndex != -1) {
+                // If the new 'from' matches another entry, delete this one and update that one?
+                // Or simpler: just don't allow update if it creates a duplicate.
+                // But instructions say "already same from -> overwrite".
+                // In update case, if user changes A->B to C->B, and C already exists, 
+                // we should probably merge them or just update the existing C and remove the old A.
+                current.removeAt(index)
+                val existingC = current[current.indexOfFirst { it.from == trimmedFrom }]
+                current[current.indexOfFirst { it.from == trimmedFrom }] = existingC.copy(to = trimmedTo)
+            } else {
+                current[index] = entry.copy(from = trimmedFrom, to = trimmedTo)
+            }
+            saveEntries(current)
         }
-        saveEntries(current)
     }
 
     fun deleteEntry(entry: UserDictionaryEntry) {

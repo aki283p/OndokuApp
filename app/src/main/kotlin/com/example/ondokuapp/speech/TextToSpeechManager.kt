@@ -122,6 +122,8 @@ class TextToSpeechManager(
 
     fun updateDictionary(entries: List<UserDictionaryEntry>) {
         userDictionary = entries
+            .filter { it.from.isNotEmpty() && it.to.isNotEmpty() }
+            .sortedByDescending { it.from.length }
     }
 
     private fun playNext() {

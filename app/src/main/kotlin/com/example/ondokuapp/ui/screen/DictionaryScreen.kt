@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +25,7 @@ fun DictionaryScreen(
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingEntry by remember { mutableStateOf<UserDictionaryEntry?>(null) }
+    var entryToDelete by remember { mutableStateOf<UserDictionaryEntry?>(null) }
     
     Scaffold(
         topBar = {
@@ -43,16 +45,39 @@ fun DictionaryScreen(
         }
     ) { innerPadding ->
         if (viewModel.dictionaryEntries.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Text("辞書が空です。右下の＋ボタンから追加してください。")
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Spellcheck,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "辞書が空です",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    Text(
+                        text = "右下の＋ボタンから追加してください",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                items(viewModel.dictionaryEntries) { entry ->
+                items(viewModel.dictionaryEntries, key = { it.id }) { entry ->
                     DictionaryItem(
                         entry = entry,
                         onEdit = { editingEntry = entry },
-                        onDelete = { viewModel.deleteDictionaryEntry(entry) }
+                        onDelete = { entryToDelete = entry }
                     )
                     HorizontalDivider()
                 }
@@ -76,6 +101,29 @@ fun DictionaryScreen(
                 onConfirm = { from, to ->
                     viewModel.updateDictionaryEntry(entry.copy(from = from, to = to))
                     editingEntry = null
+                }
+            )
+        }
+
+        entryToDelete?.let { entry ->
+            AlertDialog(
+                onDismissRequest = { entryToDelete = null },
+                title = { Text("読み替えを削除") },
+                text = { Text("「${entry.from} → ${entry.to}」を削除しますか？") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteDictionaryEntry(entry)
+                            entryToDelete = null
+                        }
+                    ) {
+                        Text("削除", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { entryToDelete = null }) {
+                        Text("キャンセル")
+                    }
                 }
             )
         }
@@ -110,8 +158,8 @@ fun DictionaryEntryDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String) -> Unit
 ) {
-    var from by remember { mutableStateOf(entry?.from ?: "") }
-    var to by remember { mutableStateOf(entry?.to ?: "") }
+    var from by remember(entry?.id) { mutableStateOf(entry?.from ?: "") }
+    var to by remember(entry?.id) { mutableStateOf(entry?.to ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -122,20 +170,22 @@ fun DictionaryEntryDialog(
                     value = from,
                     onValueChange = { from = it },
                     label = { Text("表記 (置換前)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 OutlinedTextField(
                     value = to,
                     onValueChange = { to = it },
                     label = { Text("読み (置換後)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(from, to) },
-                enabled = from.isNotBlank() && to.isNotBlank()
+                enabled = from.trim().isNotBlank() && to.trim().isNotBlank()
             ) {
                 Text("確定")
             }
