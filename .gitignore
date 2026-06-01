@@ -1,0 +1,44 @@
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Local config
+local.properties
+
+# Android Studio
+.idea/
+*.iml
+
+# Kotlin / Java
+*.class
+
+# Android build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated
+captures/
+.externalNativeBuild/
+.cxx/
+
+# JVM / Android Studio crash or heap dump files
+*.hprof
+*.hprof.gz
+hs_err_pid*
+replay_pid*
+
+# JVM / Android Studio crash or heap dump files
+*.hprof
+*.hprof.gz
+hs_err_pid*
+replay_pid*

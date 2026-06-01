@@ -4,7 +4,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M32,32h44v44h-44z" />
+    <group
+        android:translateX="22"
+        android:translateY="22">
+        <!-- Book Shape -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M18,2H6C4.9,2 4,2.9 4,4V20C4,21.1 4.9,22 6,22H18C19.1,22 20,21.1 20,20V4C20,2.9 19.1,2 18,2ZM18,20H6V4H7V18H18V20Z" />
+        <!-- Sound Waves / Speech Symbol -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M28,12C28,14.21 27.1,16.21 25.66,17.66L24.25,16.25C25.34,15.16 26,13.66 26,12C26,10.34 25.34,8.84 24.25,7.75L25.66,6.34C27.1,7.79 28,9.79 28,12ZM21.41,10.59L20,12L21.41,13.41C21.78,13.04 22,12.54 22,12C22,11.46 21.78,10.96 21.41,10.59Z" />
+    </group>
 </vector>
