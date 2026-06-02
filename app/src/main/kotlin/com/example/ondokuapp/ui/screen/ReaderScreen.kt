@@ -165,17 +165,30 @@ private fun EpisodeListSheet(
                 modifier = Modifier.padding(16.dp)
             )
             
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 480.dp)
+            ) {
                 itemsIndexed(episodes) { index, episode ->
                     val isSelected = index == currentIndex
                     ListItem(
                         modifier = Modifier.clickable { onEpisodeSelect(index) },
                         headlineContent = {
-                            Text(
-                                text = stringResource(R.string.episode_number, index + 1) + ". " + episode.title,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.episode_number, index + 1) + ". " + episode.title,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                                if (isSelected) {
+                                    Text(
+                                        text = stringResource(R.string.current_episode),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -430,6 +430,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun moveToEpisode(index: Int) {
+        if (index == currentEpisodeIndex) return
         if (index >= 0 && index < readerEpisodes.size) {
             isManualStopRequested = true
             if (isSpeaking) {
