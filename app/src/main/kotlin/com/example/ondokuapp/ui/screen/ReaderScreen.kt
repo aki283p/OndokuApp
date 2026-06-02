@@ -103,8 +103,8 @@ fun ReaderScreen(
                 totalChunks = displayChunks.size,
                 showSettings = showSettings,
                 onToggleSettings = { showSettings = !showSettings },
-                onPreviousEpisode = { viewModel.moveToPreviousEpisode(novel) },
-                onNextEpisode = { viewModel.moveToNextEpisode(novel) },
+                onPreviousEpisode = { viewModel.moveToPreviousEpisode() },
+                onNextEpisode = { viewModel.moveToNextEpisode() },
                 hasPrevious = currentEpisodeIndex > 0,
                 hasNext = currentEpisodeIndex < readerEpisodes.size - 1,
                 hasMultipleEpisodes = readerEpisodes.size > 1

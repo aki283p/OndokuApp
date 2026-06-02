@@ -387,22 +387,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun moveToNextEpisode(novel: Novel) {
+    fun moveToNextEpisode() {
         if (currentEpisodeIndex < readerEpisodes.size - 1) {
-            val nextIndex = currentEpisodeIndex + 1
-            currentEpisodeIndex = nextIndex
-            // 再生中なら停止（自動再生は今回はしない）
-            stopSpeaking()
+            currentEpisodeIndex++
+            resetReaderState()
         }
     }
 
-    fun moveToPreviousEpisode(novel: Novel) {
+    fun moveToPreviousEpisode() {
         if (currentEpisodeIndex > 0) {
-            val prevIndex = currentEpisodeIndex - 1
-            currentEpisodeIndex = prevIndex
-            // 再生中なら停止
-            stopSpeaking()
+            currentEpisodeIndex--
+            resetReaderState()
         }
+    }
+
+    private fun resetReaderState() {
+        stopSpeaking()
+        currentReadingEpisodeId = null
+        currentChunks = emptyList()
+        currentChunkIndex = 0
     }
 
     fun updateSpeechSettings(settings: SpeechSettings) {
@@ -471,12 +474,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun pauseSpeaking() {
+        if (isSpeaking) {
+            saveCurrentPosition(currentChunkIndex)
+        }
         isSpeaking = false
         ttsManager.pause()
         cancelSleepTimer()
     }
 
     fun stopSpeaking() {
+        if (isSpeaking) {
+            saveCurrentPosition(currentChunkIndex)
+        }
         isSpeaking = false
         ttsManager.stop()
         cancelSleepTimer()
