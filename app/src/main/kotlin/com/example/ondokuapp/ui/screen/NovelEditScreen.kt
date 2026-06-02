@@ -174,6 +174,36 @@ fun NovelEditScreen(
                             }
                         }
                     }
+
+                    // 複数話ダウンロードボタン
+                    if (viewModel.detectedEpisodeLinks.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                viewModel.downloadDetectedEpisodes(title, url) {
+                                    onBack()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !viewModel.isDownloadingEpisodes && !viewModel.isImporting,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                        ) {
+                            if (viewModel.isDownloadingEpisodes) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onTertiary)
+                                Spacer(Modifier.width(8.dp))
+                                Text(viewModel.episodeDownloadProgress, style = MaterialTheme.typography.labelMedium)
+                            } else {
+                                Icon(Icons.Default.Download, null)
+                                Spacer(Modifier.width(8.dp))
+                                val count = viewModel.detectedEpisodeLinks.size.coerceAtMost(20)
+                                Text("先頭${count}話をダウンロードして保存")
+                            }
+                        }
+                        
+                        viewModel.episodeDownloadError?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
 

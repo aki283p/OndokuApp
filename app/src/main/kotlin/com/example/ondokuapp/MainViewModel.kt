@@ -36,6 +36,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsRepository = SettingsRepository(application)
     private val dictionaryRepository = DictionaryRepository(application)
     
+    companion object {
+        private const val MAX_EPISODE_DOWNLOAD_COUNT = 20
+    }
+
     private val ttsManager = TextToSpeechManager(
         context = application,
         onStart = { index -> 
@@ -130,6 +134,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var isDetectingEpisodeLinks by mutableStateOf(false)
         private set
 
+    // 複数話ダウンロード状態
+    var isDownloadingEpisodes by mutableStateOf(false)
+        private set
+    var episodeDownloadProgress by mutableStateOf("")
+        private set
+    var episodeDownloadError by mutableStateOf<String?>(null)
+        private set
+
     fun updateSearchQuery(query: String) { searchQuery = query }
     fun updateSortOrder(order: SortOrder) { sortOrder = order }
     fun toggleFavoriteFilter() { showFavoritesOnly = !showFavoritesOnly }
@@ -173,10 +185,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } else {
                 val novelTitle = if (title.isBlank()) content.take(20).replace("\n", " ") else title
+                val host = try { sourceUrl?.let { java.net.URL(it).host } } catch (e: Exception) { null }
                 val novelId = repository.insertNovel(Novel(
                     title = novelTitle,
                     content = content,
                     sourceUrl = sourceUrl,
+                    sourceSite = host,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis()
                 ))
@@ -254,6 +268,70 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearDetectedEpisodeLinks() {
         detectedEpisodeLinks = emptyList()
         episodeLinkDetectionError = null
+        episodeDownloadError = null
+    }
+
+    fun downloadDetectedEpisodes(
+        title: String,
+        sourceUrl: String,
+        onComplete: () -> Unit
+    ) {
+        if (detectedEpisodeLinks.isEmpty()) return
+        
+        viewModelScope.launch {
+            isDownloadingEpisodes = true
+            episodeDownloadError = null
+            
+            val linksToDownload = detectedEpisodeLinks.take(MAX_EPISODE_DOWNLOAD_COUNT)
+            val downloadedEpisodes = mutableListOf<Episode>()
+            
+            for ((index, link) in linksToDownload.withIndex()) {
+                episodeDownloadProgress = "${index + 1} / ${linksToDownload.size} 話を取得中..."
+                
+                importRepository.fetchFromUrl(link.url).onSuccess { novelData ->
+                    downloadedEpisodes.add(
+                        Episode(
+                            novelId = 0, // あとで設定
+                            title = link.title,
+                            content = novelData.content,
+                            episodeUrl = link.url,
+                            episodeIndex = index,
+                            isDownloaded = true,
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }.onFailure {
+                    // 失敗した話はスキップ
+                }
+            }
+            
+            if (downloadedEpisodes.isEmpty()) {
+                episodeDownloadError = "全ての話の取得に失敗しました。"
+                isDownloadingEpisodes = false
+                return@launch
+            }
+            
+            // 作品とエピソードを保存
+            val firstEpisode = downloadedEpisodes.first()
+            val host = try { java.net.URL(sourceUrl).host } catch (e: Exception) { null }
+            val novelId = repository.insertNovel(
+                Novel(
+                    title = if (title.isBlank()) firstEpisode.title else title,
+                    content = firstEpisode.content, // 互換性のため
+                    sourceUrl = sourceUrl,
+                    sourceSite = host,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            
+            val episodesToSave = downloadedEpisodes.map { it.copy(novelId = novelId) }
+            episodeRepository.insertEpisodes(episodesToSave)
+            
+            isDownloadingEpisodes = false
+            onComplete()
+        }
     }
 
     fun cleanText(text: String): String {
