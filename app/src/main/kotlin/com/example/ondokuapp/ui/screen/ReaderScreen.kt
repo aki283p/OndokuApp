@@ -175,19 +175,19 @@ private fun EpisodeListSheet(
                     ListItem(
                         modifier = Modifier.clickable { onEpisodeSelect(index) },
                         headlineContent = {
-                            Column {
+                            Text(
+                                text = stringResource(R.string.episode_number, index + 1) + ". " + episode.title,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        supportingContent = {
+                            if (isSelected) {
                                 Text(
-                                    text = stringResource(R.string.episode_number, index + 1) + ". " + episode.title,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    text = stringResource(R.string.current_episode),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                if (isSelected) {
-                                    Text(
-                                        text = stringResource(R.string.current_episode),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
                             }
                         },
                         trailingContent = {

@@ -431,16 +431,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun moveToEpisode(index: Int) {
         if (index == currentEpisodeIndex) return
-        if (index >= 0 && index < readerEpisodes.size) {
-            isManualStopRequested = true
-            if (isSpeaking) {
-                saveCurrentPosition(currentChunkIndex)
-            }
-            ttsManager.stop()
-            cancelSleepTimer()
-            currentEpisodeIndex = index
-            resetReaderState()
+        if (index !in readerEpisodes.indices) return
+
+        isManualStopRequested = true
+        if (isSpeaking) {
+            saveCurrentPosition(currentChunkIndex)
         }
+        ttsManager.stop()
+        cancelSleepTimer()
+        currentEpisodeIndex = index
+        resetReaderState()
     }
 
     private fun checkAndPlayNextEpisode() {
