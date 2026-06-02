@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ondokuapp.MainViewModel
@@ -38,9 +41,24 @@ fun ReaderScreen(
     val currentChunks = viewModel.currentChunks
     val currentChunkIndex = viewModel.currentChunkIndex
     
-    // 表示用のチャンク（ViewModelにまだ入っていない場合は今の本文を分割して使う）
-    val displayChunks = remember(novel.content, currentChunks) {
-        if (currentChunks.isNotEmpty()) currentChunks else TextCleaner.splitIntoChunks(novel.content)
+    val readerEpisodes = viewModel.readerEpisodes
+    val currentEpisodeIndex = viewModel.currentEpisodeIndex
+    val currentEpisode = readerEpisodes.getOrNull(currentEpisodeIndex)
+
+    // 初回読み込み
+    LaunchedEffect(novel.id) {
+        viewModel.loadEpisodesForReader(novel)
+    }
+
+    // 表示用のチャンク
+    // ViewModelにまだ入っていない場合（未再生など）は、今のエピソードまたはNovel.contentから作る
+    val displayChunks = remember(currentEpisode, currentChunks) {
+        if (currentChunks.isNotEmpty()) {
+            currentChunks
+        } else {
+            val content = currentEpisode?.content ?: novel.content
+            TextCleaner.splitIntoChunks(content)
+        }
     }
 
     val listState = rememberLazyListState()
@@ -53,10 +71,20 @@ fun ReaderScreen(
         }
     }
 
+    // エピソードが切り替わったらトップにスクロール（再生中でない場合）
+    LaunchedEffect(currentEpisodeIndex) {
+        if (!isSpeaking) {
+            listState.scrollToItem(0)
+        }
+    }
+
     Scaffold(
         topBar = {
             ReaderTopBar(
                 title = novel.title,
+                subtitle = currentEpisode?.title,
+                episodeIndex = currentEpisodeIndex,
+                totalEpisodes = readerEpisodes.size,
                 sleepTimerMinutes = viewModel.sleepTimerMinutes,
                 onBack = {
                     viewModel.stopSpeaking()
@@ -69,11 +97,17 @@ fun ReaderScreen(
             ReaderBottomBar(
                 viewModel = viewModel,
                 novel = novel,
+                currentEpisode = currentEpisode,
                 isSpeaking = isSpeaking,
                 currentChunkIndex = currentChunkIndex,
                 totalChunks = displayChunks.size,
                 showSettings = showSettings,
-                onToggleSettings = { showSettings = !showSettings }
+                onToggleSettings = { showSettings = !showSettings },
+                onPreviousEpisode = { viewModel.moveToPreviousEpisode(novel) },
+                onNextEpisode = { viewModel.moveToNextEpisode(novel) },
+                hasPrevious = currentEpisodeIndex > 0,
+                hasNext = currentEpisodeIndex < readerEpisodes.size - 1,
+                hasMultipleEpisodes = readerEpisodes.size > 1
             )
         }
     ) { innerPadding ->
@@ -91,6 +125,9 @@ fun ReaderScreen(
 @Composable
 private fun ReaderTopBar(
     title: String,
+    subtitle: String?,
+    episodeIndex: Int,
+    totalEpisodes: Int,
     sleepTimerMinutes: Int,
     onBack: () -> Unit,
     onSetTimer: (Int) -> Unit
@@ -99,12 +136,23 @@ private fun ReaderTopBar(
 
     TopAppBar(
         title = { 
-            Text(
-                text = title,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-            ) 
+            Column {
+                Text(
+                    text = title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         },
         navigationIcon = {
             IconButton(onClick = onBack) {
@@ -112,6 +160,13 @@ private fun ReaderTopBar(
             }
         },
         actions = {
+            if (totalEpisodes > 1) {
+                Text(
+                    text = stringResource(R.string.episode_count, episodeIndex + 1, totalEpisodes),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
             Box {
                 IconButton(onClick = { showTimerMenu = true }) {
                     BadgedBox(
@@ -177,11 +232,17 @@ private fun ReaderContent(
 private fun ReaderBottomBar(
     viewModel: MainViewModel,
     novel: Novel,
+    currentEpisode: com.example.ondokuapp.model.Episode?,
     isSpeaking: Boolean,
     currentChunkIndex: Int,
     totalChunks: Int,
     showSettings: Boolean,
-    onToggleSettings: () -> Unit
+    onToggleSettings: () -> Unit,
+    onPreviousEpisode: () -> Unit,
+    onNextEpisode: () -> Unit,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    hasMultipleEpisodes: Boolean
 ) {
     Surface(
         tonalElevation = 8.dp,
@@ -198,16 +259,54 @@ private fun ReaderBottomBar(
                 currentIndex = currentChunkIndex,
                 totalCount = totalChunks,
                 isSpeaking = isSpeaking,
-                hasProgress = novel.currentPosition > 0
+                hasProgress = (currentEpisode?.currentPosition ?: novel.currentPosition) > 0
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            if (hasMultipleEpisodes) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = onPreviousEpisode,
+                        enabled = hasPrevious,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.NavigateBefore, null)
+                        Text(stringResource(R.string.previous_episode), style = MaterialTheme.typography.labelMedium)
+                    }
+                    TextButton(
+                        onClick = onNextEpisode,
+                        enabled = hasNext,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.next_episode), style = MaterialTheme.typography.labelMedium)
+                        Icon(Icons.AutoMirrored.Filled.NavigateNext, null)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             PlaybackControls(
                 isSpeaking = isSpeaking,
-                hasProgress = novel.currentPosition > 0,
-                onStart = { viewModel.startSpeaking(novel, fromStart = false) },
-                onRestart = { viewModel.startSpeaking(novel, fromStart = true) },
+                hasProgress = (currentEpisode?.currentPosition ?: novel.currentPosition) > 0,
+                onStart = { 
+                    if (currentEpisode != null) {
+                        viewModel.startSpeakingEpisode(novel, currentEpisode, fromStart = false)
+                    } else {
+                        viewModel.startSpeaking(novel, fromStart = false)
+                    }
+                },
+                onRestart = { 
+                    if (currentEpisode != null) {
+                        viewModel.startSpeakingEpisode(novel, currentEpisode, fromStart = true)
+                    } else {
+                        viewModel.startSpeaking(novel, fromStart = true)
+                    }
+                },
                 onPause = { viewModel.pauseSpeaking() },
                 onStop = { viewModel.stopSpeaking() },
                 showSettings = showSettings,

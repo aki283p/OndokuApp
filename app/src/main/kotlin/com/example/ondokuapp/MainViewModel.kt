@@ -134,13 +134,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var isDetectingEpisodeLinks by mutableStateOf(false)
         private set
 
-    // 複数話ダウンロード状態
     var isDownloadingEpisodes by mutableStateOf(false)
         private set
     var episodeDownloadProgress by mutableStateOf("")
         private set
     var episodeDownloadError by mutableStateOf<String?>(null)
         private set
+
+    // Reader画面用の話リスト
+    var readerEpisodes by mutableStateOf<List<Episode>>(emptyList())
+        private set
+    var currentEpisodeIndex by mutableStateOf(0)
+        private set
+    private var currentReadingEpisodeId: Long? = null
 
     fun updateSearchQuery(query: String) { searchQuery = query }
     fun updateSortOrder(order: SortOrder) { sortOrder = order }
@@ -338,6 +344,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return TextCleaner.clean(text)
     }
 
+    fun loadEpisodesForReader(novel: Novel) {
+        viewModelScope.launch {
+            val episodes = episodeRepository.getEpisodesByNovelId(novel.id).first()
+            readerEpisodes = episodes
+            
+            if (episodes.isNotEmpty()) {
+                val lastReadId = novel.lastReadEpisodeId
+                val index = if (lastReadId != null) {
+                    episodes.indexOfFirst { it.id == lastReadId }.coerceAtLeast(0)
+                } else {
+                    0
+                }
+                currentEpisodeIndex = index
+            } else {
+                currentEpisodeIndex = 0
+            }
+        }
+    }
+
+    fun startSpeakingEpisode(novel: Novel, episode: Episode, fromStart: Boolean = false) {
+        stopSpeaking()
+        
+        currentReadingNovelId = novel.id
+        currentReadingEpisodeId = episode.id
+        currentChunks = TextCleaner.splitIntoChunks(episode.content)
+        
+        val startIndex = if (fromStart) 0 else episode.currentPosition
+        currentChunkIndex = startIndex.coerceIn(0, if (currentChunks.isEmpty()) 0 else currentChunks.size - 1)
+        
+        isSpeaking = true
+        ttsManager.speakChunks(currentChunks, currentChunkIndex)
+        
+        viewModelScope.launch {
+            // 作品の最終再生日時と最後に読んだエピソードIDを更新
+            repository.getNovelById(novel.id)?.let { latest ->
+                repository.updateNovel(latest.copy(
+                    lastReadAt = System.currentTimeMillis(),
+                    lastReadEpisodeId = episode.id
+                ))
+            }
+        }
+    }
+
+    fun moveToNextEpisode(novel: Novel) {
+        if (currentEpisodeIndex < readerEpisodes.size - 1) {
+            val nextIndex = currentEpisodeIndex + 1
+            currentEpisodeIndex = nextIndex
+            // 再生中なら停止（自動再生は今回はしない）
+            stopSpeaking()
+        }
+    }
+
+    fun moveToPreviousEpisode(novel: Novel) {
+        if (currentEpisodeIndex > 0) {
+            val prevIndex = currentEpisodeIndex - 1
+            currentEpisodeIndex = prevIndex
+            // 再生中なら停止
+            stopSpeaking()
+        }
+    }
+
     fun updateSpeechSettings(settings: SpeechSettings) {
         speechSettings = settings
         ttsManager.applySettings(settings)
@@ -382,10 +449,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun saveCurrentPosition(index: Int) {
         val novelId = currentReadingNovelId ?: return
+        val episodeId = currentReadingEpisodeId
+        
         viewModelScope.launch {
-            repository.getNovelById(novelId)?.let { latest ->
-                // 最後まで完了した場合は index=0 が渡される想定
-                repository.updateNovel(latest.copy(currentPosition = index))
+            if (episodeId != null) {
+                // エピソードの再生位置を保存
+                episodeRepository.getEpisodeById(episodeId)?.let { episode ->
+                    episodeRepository.updateEpisode(episode.copy(currentPosition = index))
+                }
+                // 作品側の lastReadEpisodeId も念のため更新
+                repository.getNovelById(novelId)?.let { novel ->
+                    repository.updateNovel(novel.copy(lastReadEpisodeId = episodeId))
+                }
+            } else {
+                // 互換用：作品の再生位置を保存
+                repository.getNovelById(novelId)?.let { latest ->
+                    repository.updateNovel(latest.copy(currentPosition = index))
+                }
             }
         }
     }

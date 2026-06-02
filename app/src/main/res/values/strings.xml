@@ -69,4 +69,7 @@
     <string name="close_settings">設定を閉じる</string>
     <string name="label_speed">速度: %1$.1fx</string>
     <string name="label_pitch">ピッチ: %1$.1f</string>
+    <string name="episode_count">%1$d / %2$d</string>
+    <string name="previous_episode">前の話</string>
+    <string name="next_episode">次の話</string>
 </resources>
