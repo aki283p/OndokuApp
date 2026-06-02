@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -321,7 +322,9 @@ private fun ReaderBottomBar(
                 SpeechSettingsPanel(
                     speed = viewModel.speechSettings.speed,
                     pitch = viewModel.speechSettings.pitch,
-                    onSettingsChange = { viewModel.updateSpeechSettings(it) }
+                    autoPlayNext = viewModel.autoPlayNextEpisode,
+                    onSettingsChange = { viewModel.updateSpeechSettings(it) },
+                    onToggleAutoPlay = { viewModel.toggleAutoPlayNextEpisode() }
                 )
             }
         }
@@ -456,7 +459,9 @@ private fun PlaybackControls(
 private fun SpeechSettingsPanel(
     speed: Float,
     pitch: Float,
-    onSettingsChange: (com.example.ondokuapp.settings.SpeechSettings) -> Unit
+    autoPlayNext: Boolean,
+    onSettingsChange: (com.example.ondokuapp.settings.SpeechSettings) -> Unit,
+    onToggleAutoPlay: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -465,13 +470,34 @@ private fun SpeechSettingsPanel(
     ) {
         HorizontalDivider(modifier = Modifier.padding(bottom = 16.dp))
         
-        Text(
-            text = stringResource(R.string.reading_settings),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.reading_settings),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.auto_play_next),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = autoPlayNext,
+                    onCheckedChange = { onToggleAutoPlay() },
+                    modifier = Modifier.scale(0.8f)
+                )
+            }
+        }
+        
+        Spacer(Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.label_speed, speed), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(96.dp))

@@ -40,6 +40,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private const val MAX_EPISODE_DOWNLOAD_COUNT = 20
     }
 
+    // 読み上げ完了判定用
+    private var isManualStopRequested = false
+    var autoPlayNextEpisode by mutableStateOf(true)
+        private set
+
+    fun toggleAutoPlayNextEpisode() {
+        autoPlayNextEpisode = !autoPlayNextEpisode
+    }
+
     private val ttsManager = TextToSpeechManager(
         context = application,
         onStart = { index -> 
@@ -51,6 +60,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 isSpeaking = false
                 // 最後まで完了した場合は 0 に戻す
                 saveCurrentPosition(0)
+                
+                // 自動次話再生の判定
+                if (!isManualStopRequested && autoPlayNextEpisode && index != -1) {
+                    checkAndPlayNextEpisode()
+                }
             } else {
                 saveCurrentPosition(index)
             }
@@ -364,7 +378,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startSpeakingEpisode(novel: Novel, episode: Episode, fromStart: Boolean = false) {
+        isManualStopRequested = false
         stopSpeaking()
+        isManualStopRequested = false // stopSpeakingでtrueになるので戻す
         
         currentReadingNovelId = novel.id
         currentReadingEpisodeId = episode.id
@@ -389,6 +405,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveToNextEpisode() {
         if (currentEpisodeIndex < readerEpisodes.size - 1) {
+            isManualStopRequested = true
             saveCurrentPosition(currentChunkIndex)
             ttsManager.stop()
             cancelSleepTimer()
@@ -399,11 +416,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveToPreviousEpisode() {
         if (currentEpisodeIndex > 0) {
+            isManualStopRequested = true
             saveCurrentPosition(currentChunkIndex)
             ttsManager.stop()
             cancelSleepTimer()
             currentEpisodeIndex--
             resetReaderState()
+        }
+    }
+
+    private fun checkAndPlayNextEpisode() {
+        if (currentEpisodeIndex < readerEpisodes.size - 1) {
+            val nextIndex = currentEpisodeIndex + 1
+            currentEpisodeIndex = nextIndex
+            val nextEpisode = readerEpisodes[nextIndex]
+            
+            // 作品情報が必要なので、現在のIDから最新の作品データを取得するか、引数で渡すか
+            // ここでは現在のNovelIdを使って再生を開始する
+            currentReadingNovelId?.let { novelId ->
+                viewModelScope.launch {
+                    repository.getNovelById(novelId)?.let { novel ->
+                        startSpeakingEpisode(novel, nextEpisode, fromStart = true)
+                    }
+                }
+            }
         }
     }
 
@@ -484,6 +520,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun pauseSpeaking() {
+        isManualStopRequested = true
         if (isSpeaking) {
             saveCurrentPosition(currentChunkIndex)
         }
@@ -493,6 +530,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopSpeaking() {
+        isManualStopRequested = true
         if (isSpeaking) {
             saveCurrentPosition(currentChunkIndex)
         }

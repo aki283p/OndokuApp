@@ -72,4 +72,5 @@
     <string name="episode_count">%1$d / %2$d</string>
     <string name="previous_episode">前の話</string>
     <string name="next_episode">次の話</string>
+    <string name="auto_play_next">次の話を自動再生</string>
 </resources>
