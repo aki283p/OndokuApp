@@ -20,4 +20,15 @@ class SettingsRepository(context: Context) {
             apply()
         }
     }
+
+    fun loadAutoPlayNextEpisode(): Boolean {
+        return prefs.getBoolean("auto_play_next", true)
+    }
+
+    fun saveAutoPlayNextEpisode(enabled: Boolean) {
+        prefs.edit().apply {
+            putBoolean("auto_play_next", enabled)
+            apply()
+        }
+    }
 }

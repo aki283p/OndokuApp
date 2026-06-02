@@ -47,6 +47,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleAutoPlayNextEpisode() {
         autoPlayNextEpisode = !autoPlayNextEpisode
+        settingsRepository.saveAutoPlayNextEpisode(autoPlayNextEpisode)
     }
 
     private val ttsManager = TextToSpeechManager(
@@ -85,6 +86,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val savedSettings = settingsRepository.loadSpeechSettings()
         speechSettings = savedSettings
         ttsManager.applySettings(savedSettings)
+
+        autoPlayNextEpisode = settingsRepository.loadAutoPlayNextEpisode()
 
         // 辞書の読み込み
         var entries = dictionaryRepository.loadEntries()
@@ -426,19 +429,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun checkAndPlayNextEpisode() {
-        if (currentEpisodeIndex < readerEpisodes.size - 1) {
-            val nextIndex = currentEpisodeIndex + 1
-            currentEpisodeIndex = nextIndex
-            val nextEpisode = readerEpisodes[nextIndex]
-            
-            // 作品情報が必要なので、現在のIDから最新の作品データを取得するか、引数で渡すか
-            // ここでは現在のNovelIdを使って再生を開始する
-            currentReadingNovelId?.let { novelId ->
-                viewModelScope.launch {
-                    repository.getNovelById(novelId)?.let { novel ->
-                        startSpeakingEpisode(novel, nextEpisode, fromStart = true)
-                    }
+        if (readerEpisodes.isEmpty()) return
+        if (currentEpisodeIndex < 0 || currentEpisodeIndex >= readerEpisodes.size - 1) return
+        val novelId = currentReadingNovelId ?: return
+
+        val nextIndex = currentEpisodeIndex + 1
+        val nextEpisode = readerEpisodes[nextIndex]
+        
+        if (nextEpisode.content.isBlank()) {
+            isSpeaking = false
+            return
+        }
+
+        currentEpisodeIndex = nextIndex
+        
+        viewModelScope.launch {
+            try {
+                repository.getNovelById(novelId)?.let { novel ->
+                    startSpeakingEpisode(novel, nextEpisode, fromStart = true)
                 }
+            } catch (e: Exception) {
+                isSpeaking = false
             }
         }
     }
