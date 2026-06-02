@@ -389,6 +389,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveToNextEpisode() {
         if (currentEpisodeIndex < readerEpisodes.size - 1) {
+            saveCurrentPosition(currentChunkIndex)
+            ttsManager.stop()
+            cancelSleepTimer()
             currentEpisodeIndex++
             resetReaderState()
         }
@@ -396,13 +399,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveToPreviousEpisode() {
         if (currentEpisodeIndex > 0) {
+            saveCurrentPosition(currentChunkIndex)
+            ttsManager.stop()
+            cancelSleepTimer()
             currentEpisodeIndex--
             resetReaderState()
         }
     }
 
     private fun resetReaderState() {
-        stopSpeaking()
+        isSpeaking = false
         currentReadingEpisodeId = null
         currentChunks = emptyList()
         currentChunkIndex = 0
@@ -454,11 +460,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val novelId = currentReadingNovelId ?: return
         val episodeId = currentReadingEpisodeId
         
+        // 範囲補正
+        val maxIndex = if (currentChunks.isNotEmpty()) currentChunks.size - 1 else 0
+        val correctedIndex = index.coerceIn(0, maxIndex)
+
         viewModelScope.launch {
             if (episodeId != null) {
                 // エピソードの再生位置を保存
                 episodeRepository.getEpisodeById(episodeId)?.let { episode ->
-                    episodeRepository.updateEpisode(episode.copy(currentPosition = index))
+                    episodeRepository.updateEpisode(episode.copy(currentPosition = correctedIndex))
                 }
                 // 作品側の lastReadEpisodeId も念のため更新
                 repository.getNovelById(novelId)?.let { novel ->
@@ -467,7 +477,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 // 互換用：作品の再生位置を保存
                 repository.getNovelById(novelId)?.let { latest ->
-                    repository.updateNovel(latest.copy(currentPosition = index))
+                    repository.updateNovel(latest.copy(currentPosition = correctedIndex))
                 }
             }
         }
