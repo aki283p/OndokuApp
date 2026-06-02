@@ -417,24 +417,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun selectEpisode(index: Int) {
+        moveToEpisode(index)
+    }
+
     fun moveToNextEpisode() {
-        if (currentEpisodeIndex < readerEpisodes.size - 1) {
-            isManualStopRequested = true
-            saveCurrentPosition(currentChunkIndex)
-            ttsManager.stop()
-            cancelSleepTimer()
-            currentEpisodeIndex++
-            resetReaderState()
-        }
+        moveToEpisode(currentEpisodeIndex + 1)
     }
 
     fun moveToPreviousEpisode() {
-        if (currentEpisodeIndex > 0) {
+        moveToEpisode(currentEpisodeIndex - 1)
+    }
+
+    private fun moveToEpisode(index: Int) {
+        if (index >= 0 && index < readerEpisodes.size) {
             isManualStopRequested = true
-            saveCurrentPosition(currentChunkIndex)
+            if (isSpeaking) {
+                saveCurrentPosition(currentChunkIndex)
+            }
             ttsManager.stop()
             cancelSleepTimer()
-            currentEpisodeIndex--
+            currentEpisodeIndex = index
             resetReaderState()
         }
     }

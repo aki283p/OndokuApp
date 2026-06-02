@@ -73,4 +73,8 @@
     <string name="previous_episode">前の話</string>
     <string name="next_episode">次の話</string>
     <string name="auto_play_next">次の話を自動再生</string>
+    <string name="episode_list">話一覧</string>
+    <string name="current_episode">現在の話</string>
+    <string name="episode_number">第%1$d話</string>
+    <string name="close">閉じる</string>
 </resources>

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -11,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.NavigateBefore
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.*
@@ -64,6 +66,7 @@ fun ReaderScreen(
 
     val listState = rememberLazyListState()
     var showSettings by remember { mutableStateOf(false) }
+    var showEpisodeList by remember { mutableStateOf(false) }
 
     // 自動スクロール
     LaunchedEffect(currentChunkIndex) {
@@ -91,7 +94,8 @@ fun ReaderScreen(
                     viewModel.stopSpeaking()
                     onBack()
                 },
-                onSetTimer = { viewModel.setSleepTimer(it) }
+                onSetTimer = { viewModel.setSleepTimer(it) },
+                onOpenEpisodeList = { showEpisodeList = true }
             )
         },
         bottomBar = {
@@ -119,6 +123,88 @@ fun ReaderScreen(
             currentChunkIndex = currentChunkIndex,
             isSpeaking = isSpeaking
         )
+
+        if (showEpisodeList) {
+            EpisodeListSheet(
+                episodes = readerEpisodes,
+                currentIndex = currentEpisodeIndex,
+                onEpisodeSelect = { index ->
+                    viewModel.selectEpisode(index)
+                    showEpisodeList = false
+                },
+                onDismiss = { showEpisodeList = false }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EpisodeListSheet(
+    episodes: List<com.example.ondokuapp.model.Episode>,
+    currentIndex: Int,
+    onEpisodeSelect: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.episode_list),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp)
+            )
+            
+            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                itemsIndexed(episodes) { index, episode ->
+                    val isSelected = index == currentIndex
+                    ListItem(
+                        modifier = Modifier.clickable { onEpisodeSelect(index) },
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.episode_number, index + 1) + ". " + episode.title,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        trailingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (episode.currentPosition > 0) {
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.reading_status_in_progress),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                }
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
+                        )
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -131,7 +217,8 @@ private fun ReaderTopBar(
     totalEpisodes: Int,
     sleepTimerMinutes: Int,
     onBack: () -> Unit,
-    onSetTimer: (Int) -> Unit
+    onSetTimer: (Int) -> Unit,
+    onOpenEpisodeList: () -> Unit
 ) {
     var showTimerMenu by remember { mutableStateOf(false) }
 
@@ -162,6 +249,9 @@ private fun ReaderTopBar(
         },
         actions = {
             if (totalEpisodes > 1) {
+                IconButton(onClick = onOpenEpisodeList) {
+                    Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = stringResource(R.string.episode_list))
+                }
                 Text(
                     text = stringResource(R.string.episode_count, episodeIndex + 1, totalEpisodes),
                     style = MaterialTheme.typography.labelMedium,
