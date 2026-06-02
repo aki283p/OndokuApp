@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ondokuapp.model.AppDatabase
 import com.example.ondokuapp.model.Episode
+import com.example.ondokuapp.model.EpisodeLink
 import com.example.ondokuapp.model.Novel
 import com.example.ondokuapp.model.UserDictionaryEntry
 import com.example.ondokuapp.repository.DictionaryRepository
@@ -121,6 +122,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var importError by mutableStateOf<String?>(null)
         private set
 
+    // 話一覧抽出状態
+    var detectedEpisodeLinks by mutableStateOf<List<EpisodeLink>>(emptyList())
+        private set
+    var episodeLinkDetectionError by mutableStateOf<String?>(null)
+        private set
+    var isDetectingEpisodeLinks by mutableStateOf(false)
+        private set
+
     fun updateSearchQuery(query: String) { searchQuery = query }
     fun updateSortOrder(order: SortOrder) { sortOrder = order }
     fun toggleFavoriteFilter() { showFavoritesOnly = !showFavoritesOnly }
@@ -222,6 +231,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             isImporting = false
         }
+    }
+
+    fun detectEpisodeLinks(url: String) {
+        if (url.isBlank()) return
+        viewModelScope.launch {
+            isDetectingEpisodeLinks = true
+            episodeLinkDetectionError = null
+            importRepository.fetchEpisodeLinksFromUrl(url).onSuccess { links ->
+                detectedEpisodeLinks = links
+                if (links.isEmpty()) {
+                    episodeLinkDetectionError = "話一覧は検出できませんでした。単一ページとして取得できます。"
+                }
+            }.onFailure {
+                episodeLinkDetectionError = it.message
+                detectedEpisodeLinks = emptyList()
+            }
+            isDetectingEpisodeLinks = false
+        }
+    }
+
+    fun clearDetectedEpisodeLinks() {
+        detectedEpisodeLinks = emptyList()
+        episodeLinkDetectionError = null
     }
 
     fun cleanText(text: String): String {

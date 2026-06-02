@@ -1,6 +1,8 @@
 package com.example.ondokuapp.repository
 
+import android.util.Log
 import android.util.Patterns
+import com.example.ondokuapp.model.EpisodeLink
 import com.example.ondokuapp.model.Novel
 import com.example.ondokuapp.util.TextCleaner
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +12,11 @@ import java.net.UnknownHostException
 
 class NovelImportRepository {
     
+    companion object {
+        private const val TAG = "NovelImportRepository"
+        private const val MAX_EPISODE_LINKS = 200
+    }
+
     suspend fun fetchFromUrl(url: String): Result<Novel> = withContext(Dispatchers.IO) {
         if (url.isBlank()) return@withContext Result.failure(Exception("URLを入力してください。"))
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -98,6 +105,84 @@ class NovelImportRepository {
             Result.failure(Exception("サイトにアクセスできませんでした。通信状態やURLを確認してください。"))
         } catch (e: Exception) {
             Result.failure(Exception("エラーが発生しました: ${e.message}"))
+        }
+    }
+
+    suspend fun fetchEpisodeLinksFromUrl(url: String): Result<List<EpisodeLink>> = withContext(Dispatchers.IO) {
+        if (url.isBlank()) return@withContext Result.failure(Exception("URLを入力してください。"))
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            return@withContext Result.failure(Exception("正しいURLを入力してください（http:// または https://）"))
+        }
+
+        try {
+            val doc = Jsoup.connect(url)
+                .timeout(15000)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                .get()
+
+            val allLinks = doc.select("a[href]")
+            val episodeLinks = mutableListOf<EpisodeLink>()
+            val seenUrls = mutableSetOf<String>()
+
+            val includeKeywords = listOf(
+                "episode", "chapter", "story", "page", "works", "novel", "ncode", "view", "read"
+            )
+            val excludeKeywords = listOf(
+                "login", "signup", "register", "member", "follow", "comment", "review", "ad", 
+                "help", "terms", "privacy", "sns", "share", "twitter", "facebook", "google", "apple",
+                "ranking", "mypage", "bookmark", "feedback", "contact"
+            )
+            
+            val episodeRegex = Regex(".*([0-9０-９]+話|第.*話|プロローグ|エピローグ|序章|終章|閑話|前回|次回|目次).*")
+
+            var foundCount = 0
+            for (element in allLinks) {
+                if (foundCount >= MAX_EPISODE_LINKS) break
+
+                val linkText = element.text().trim()
+                val absoluteUrl = element.absUrl("href")
+                val href = element.attr("href").lowercase()
+                
+                if (linkText.isBlank() || absoluteUrl.isBlank()) continue
+                if (seenUrls.contains(absoluteUrl)) continue
+
+                // 除外キーワードチェック
+                if (excludeKeywords.any { href.contains(it) || linkText.lowercase().contains(it) }) continue
+
+                // 包含条件チェック
+                val isEpisodePattern = episodeRegex.matches(linkText)
+                val hasIncludeKeyword = includeKeywords.any { href.contains(it) }
+                
+                // 親要素のクラスやIDもチェック
+                var parentMatch = false
+                var parent = element.parent()
+                repeat(2) {
+                    if (parent != null) {
+                        val parentInfo = (parent!!.className() + parent!!.id()).lowercase()
+                        if (listOf("episode", "chapter", "story", "toc", "index", "list", "table-of-contents").any { parentInfo.contains(it) }) {
+                            parentMatch = true
+                        }
+                        parent = parent!!.parent()
+                    }
+                }
+
+                if (isEpisodePattern || (hasIncludeKeyword && linkText.length < 50) || parentMatch) {
+                    episodeLinks.add(EpisodeLink(
+                        title = linkText,
+                        url = absoluteUrl,
+                        index = foundCount
+                    ))
+                    seenUrls.add(absoluteUrl)
+                    foundCount++
+                }
+            }
+
+            Log.d(TAG, "Detected ${episodeLinks.size} episode links from $url")
+            Result.success(episodeLinks)
+        } catch (e: UnknownHostException) {
+            Result.failure(Exception("サイトにアクセスできませんでした。"))
+        } catch (e: Exception) {
+            Result.failure(Exception("解析エラー: ${e.message}"))
         }
     }
 }

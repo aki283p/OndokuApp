@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
@@ -36,6 +37,10 @@ fun NovelEditScreen(
 
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(Unit) {
+        viewModel.clearDetectedEpisodeLinks()
+    }
 
     // 新規保存または更新が可能かどうかの判定
     val canSave = content.isNotBlank() && (novel != null || url.isNotBlank())
@@ -117,6 +122,57 @@ fun NovelEditScreen(
                     }
                     viewModel.importError?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    // 話一覧確認ボタン (追加分)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            viewModel.detectEpisodeLinks(url)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = url.isNotBlank() && !viewModel.isDetectingEpisodeLinks,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        if (viewModel.isDetectingEpisodeLinks) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onSecondary)
+                        } else {
+                            Icon(Icons.AutoMirrored.Filled.List, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("話一覧を確認")
+                        }
+                    }
+
+                    if (viewModel.detectedEpisodeLinks.isNotEmpty() || viewModel.episodeLinkDetectionError != null) {
+                        Column(modifier = Modifier.padding(top = 4.dp)) {
+                            if (viewModel.detectedEpisodeLinks.isNotEmpty()) {
+                                Text(
+                                    "${viewModel.detectedEpisodeLinks.size}件の話リンクを検出しました",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                viewModel.detectedEpisodeLinks.take(5).forEach { link ->
+                                    Text(
+                                        "・${link.title}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (viewModel.detectedEpisodeLinks.size > 5) {
+                                    Text("...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            viewModel.episodeLinkDetectionError?.let {
+                                Text(
+                                    it, 
+                                    color = if (viewModel.detectedEpisodeLinks.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline, 
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
                     }
                 }
             }
