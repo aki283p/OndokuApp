@@ -380,10 +380,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startSpeakingEpisode(novel: Novel, episode: Episode, fromStart: Boolean = false) {
-        isManualStopRequested = false
-        stopSpeaking()
-        isManualStopRequested = false // stopSpeakingでtrueになるので戻す
+    fun startSpeakingEpisode(
+        novel: Novel,
+        episode: Episode,
+        fromStart: Boolean = false,
+        keepSleepTimer: Boolean = false
+    ) {
+        if (keepSleepTimer) {
+            // 内部遷移用：タイマーやManualフラグを維持したままTTSだけ止める
+            isSpeaking = false
+            ttsManager.stop()
+        } else {
+            isManualStopRequested = false
+            stopSpeaking()
+            isManualStopRequested = false // stopSpeakingでtrueになるので戻す
+        }
         
         currentReadingNovelId = novel.id
         currentReadingEpisodeId = episode.id
@@ -446,7 +457,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 repository.getNovelById(novelId)?.let { novel ->
-                    startSpeakingEpisode(novel, nextEpisode, fromStart = true)
+                    startSpeakingEpisode(novel, nextEpisode, fromStart = true, keepSleepTimer = true)
                 }
             } catch (e: Exception) {
                 isSpeaking = false
