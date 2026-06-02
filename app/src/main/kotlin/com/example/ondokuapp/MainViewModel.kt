@@ -8,9 +8,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ondokuapp.model.AppDatabase
+import com.example.ondokuapp.model.Episode
 import com.example.ondokuapp.model.Novel
 import com.example.ondokuapp.model.UserDictionaryEntry
 import com.example.ondokuapp.repository.DictionaryRepository
+import com.example.ondokuapp.repository.EpisodeRepository
 import com.example.ondokuapp.repository.NovelImportRepository
 import com.example.ondokuapp.repository.NovelRepository
 import com.example.ondokuapp.repository.SettingsRepository
@@ -28,6 +30,7 @@ enum class SortOrder {
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
     private val repository = NovelRepository(db.novelDao())
+    private val episodeRepository = EpisodeRepository(db.episodeDao())
     private val importRepository = NovelImportRepository()
     private val settingsRepository = SettingsRepository(application)
     private val dictionaryRepository = DictionaryRepository(application)
@@ -135,15 +138,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         sourceUrl = sourceUrl ?: existing.sourceUrl,
                         updatedAt = System.currentTimeMillis()
                     ))
+                    
+                    // 互換性のためにエピソード0があれば更新、なければ作成
+                    val episodes = episodeRepository.getEpisodesByNovelId(id).first()
+                    val episode0 = episodes.find { it.episodeIndex == 0 }
+                    if (episode0 != null) {
+                        episodeRepository.updateEpisode(episode0.copy(
+                            title = if (title.isBlank()) "本文" else title,
+                            content = content,
+                            episodeUrl = sourceUrl ?: existing.sourceUrl,
+                            updatedAt = System.currentTimeMillis()
+                        ))
+                    } else {
+                        episodeRepository.insertEpisode(
+                            Episode(
+                                novelId = id,
+                                title = if (title.isBlank()) "本文" else title,
+                                content = content,
+                                episodeUrl = sourceUrl ?: existing.sourceUrl,
+                                episodeIndex = 0,
+                                isDownloaded = true
+                            )
+                        )
+                    }
                 }
             } else {
-                repository.insertNovel(Novel(
-                    title = if (title.isBlank()) content.take(20).replace("\n", " ") else title,
+                val novelTitle = if (title.isBlank()) content.take(20).replace("\n", " ") else title
+                val novelId = repository.insertNovel(Novel(
+                    title = novelTitle,
                     content = content,
                     sourceUrl = sourceUrl,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis()
                 ))
+
+                // 新規作成時に最初の話数としてEpisodeを作成
+                episodeRepository.insertEpisode(
+                    Episode(
+                        novelId = novelId,
+                        title = if (title.isBlank()) "本文" else title,
+                        content = content,
+                        episodeUrl = sourceUrl,
+                        episodeIndex = 0,
+                        isDownloaded = true,
+                        createdAt = System.currentTimeMillis(),
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
             }
         }
     }
@@ -159,6 +200,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (currentReadingNovelId == novel.id) {
                 stopSpeaking()
             }
+            // 作品に関連するエピソードも削除
+            episodeRepository.deleteEpisodesByNovelId(novel.id)
             repository.deleteNovel(novel)
         }
     }
