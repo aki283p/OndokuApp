@@ -24,6 +24,7 @@ import com.example.ondokuapp.MainViewModel
 import com.example.ondokuapp.R
 import com.example.ondokuapp.SortOrder
 import com.example.ondokuapp.model.Novel
+import com.example.ondokuapp.ui.state.NovelListItemUiState
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,7 +37,7 @@ fun NovelListScreen(
     onEditClick: (Novel) -> Unit,
     onOpenDictionary: () -> Unit
 ) {
-    val novels by viewModel.novels.collectAsState()
+    val novelItems by viewModel.novelListItems.collectAsState()
     var novelToDelete by remember { mutableStateOf<Novel?>(null) }
 
     Scaffold(
@@ -55,19 +56,19 @@ fun NovelListScreen(
         Column(modifier = Modifier.padding(innerPadding)) {
             BookshelfSearchAndFilters(viewModel = viewModel)
             
-            if (novels.isEmpty()) {
+            if (novelItems.isEmpty()) {
                 EmptyBookshelfMessage(
                     isSearchActive = viewModel.searchQuery.isNotEmpty() || viewModel.showFavoritesOnly
                 )
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(novels, key = { it.id }) { novel ->
+                    items(novelItems, key = { it.novel.id }) { item ->
                         NovelListItem(
-                            novel = novel,
-                            onClick = { onNovelClick(novel) },
-                            onEditClick = { onEditClick(novel) },
-                            onDeleteClick = { novelToDelete = novel },
-                            onFavoriteToggle = { viewModel.toggleFavorite(novel) }
+                            uiState = item,
+                            onClick = { onNovelClick(item.novel) },
+                            onEditClick = { onEditClick(item.novel) },
+                            onDeleteClick = { novelToDelete = item.novel },
+                            onFavoriteToggle = { viewModel.toggleFavorite(item.novel) }
                         )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -214,12 +215,13 @@ private fun EmptyBookshelfMessage(isSearchActive: Boolean) {
 
 @Composable
 private fun NovelListItem(
-    novel: Novel,
+    uiState: NovelListItemUiState,
     onClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onFavoriteToggle: () -> Unit
 ) {
+    val novel = uiState.novel
     val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()) }
     val updateDateText = dateFormat.format(Date(novel.updatedAt))
     val lastReadDateText = novel.lastReadAt?.let { dateFormat.format(Date(it)) }
@@ -239,7 +241,7 @@ private fun NovelListItem(
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            stringResource(R.string.web_source_badge),
+                            text = novel.sourceSite ?: stringResource(R.string.web_source_badge),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
@@ -272,12 +274,34 @@ private fun NovelListItem(
             Column(modifier = Modifier.padding(top = 4.dp)) {
                 Text(
                     text = novel.content.take(60).replace("\n", " "),
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val epCount = if (uiState.episodeCount > 0) uiState.episodeCount else 1
+                    Text(
+                        text = stringResource(R.string.downloaded_episodes, epCount),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    if (uiState.lastReadEpisodeTitle != null) {
+                        Text(
+                            text = stringResource(R.string.last_read_label, uiState.lastReadEpisodeTitle),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Row(
@@ -301,7 +325,7 @@ private fun NovelListItem(
                         )
                     }
                     
-                    if (novel.currentPosition > 0) {
+                    if (uiState.hasProgress) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = MaterialTheme.colorScheme.tertiaryContainer,

@@ -36,4 +36,8 @@ class EpisodeRepository(private val episodeDao: EpisodeDao) {
     suspend fun getEpisodeCount(novelId: Long): Int {
         return episodeDao.getEpisodeCount(novelId)
     }
+
+    suspend fun hasEpisodesWithProgress(novelId: Long): Boolean {
+        return episodeDao.hasEpisodesWithProgress(novelId)
+    }
 }

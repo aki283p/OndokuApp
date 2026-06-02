@@ -28,4 +28,7 @@ interface EpisodeDao {
 
     @Query("SELECT COUNT(*) FROM episodes WHERE novelId = :novelId")
     suspend fun getEpisodeCount(novelId: Long): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM episodes WHERE novelId = :novelId AND currentPosition > 0)")
+    suspend fun hasEpisodesWithProgress(novelId: Long): Boolean
 }

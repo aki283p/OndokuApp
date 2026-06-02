@@ -77,4 +77,6 @@
     <string name="current_episode">現在の話</string>
     <string name="episode_number">第%1$d話</string>
     <string name="close">閉じる</string>
+    <string name="downloaded_episodes">取得済み: %1$d話</string>
+    <string name="last_read_label">最終再生: %1$s</string>
 </resources>

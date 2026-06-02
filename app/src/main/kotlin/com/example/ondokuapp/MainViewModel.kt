@@ -19,6 +19,7 @@ import com.example.ondokuapp.repository.NovelRepository
 import com.example.ondokuapp.repository.SettingsRepository
 import com.example.ondokuapp.settings.SpeechSettings
 import com.example.ondokuapp.speech.TextToSpeechManager
+import com.example.ondokuapp.ui.state.NovelListItemUiState
 import com.example.ondokuapp.util.TextCleaner
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -121,6 +122,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             SortOrder.LAST_READ_AT -> compareByDescending { it.lastReadAt ?: 0L }
             SortOrder.TITLE -> compareBy { it.title }
         })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val novelListItems: StateFlow<List<NovelListItemUiState>> = novels.transformLatest { list ->
+        val items = list.map { novel ->
+            val count = episodeRepository.getEpisodeCount(novel.id)
+            val lastReadTitle = novel.lastReadEpisodeId?.let { id ->
+                episodeRepository.getEpisodeById(id)?.title
+            }
+            val hasEpProgress = episodeRepository.hasEpisodesWithProgress(novel.id)
+            NovelListItemUiState(
+                novel = novel,
+                episodeCount = count,
+                lastReadEpisodeTitle = lastReadTitle,
+                hasProgress = hasEpProgress || novel.currentPosition > 0
+            )
+        }
+        emit(items)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 読み上げ状態
