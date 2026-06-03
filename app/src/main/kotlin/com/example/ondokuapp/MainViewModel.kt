@@ -125,19 +125,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    // TODO: 作品数が増えた場合は、NovelとEpisodeの集計をJOINした専用クエリに置き換える
     val novelListItems: StateFlow<List<NovelListItemUiState>> = novels.transformLatest { list ->
         val items = list.map { novel ->
-            val count = episodeRepository.getEpisodeCount(novel.id)
-            val lastReadTitle = novel.lastReadEpisodeId?.let { id ->
-                episodeRepository.getEpisodeById(id)?.title
+            try {
+                val count = episodeRepository.getEpisodeCount(novel.id)
+                val lastReadTitle = novel.lastReadEpisodeId?.let { id ->
+                    episodeRepository.getEpisodeById(id)?.title
+                }
+                val hasEpProgress = episodeRepository.hasEpisodesWithProgress(novel.id)
+                NovelListItemUiState(
+                    novel = novel,
+                    episodeCount = count,
+                    lastReadEpisodeTitle = lastReadTitle,
+                    hasProgress = hasEpProgress || novel.currentPosition > 0
+                )
+            } catch (e: Exception) {
+                // 万が一の例外時は基本情報のみで表示
+                NovelListItemUiState(
+                    novel = novel,
+                    episodeCount = 0,
+                    lastReadEpisodeTitle = null,
+                    hasProgress = novel.currentPosition > 0
+                )
             }
-            val hasEpProgress = episodeRepository.hasEpisodesWithProgress(novel.id)
-            NovelListItemUiState(
-                novel = novel,
-                episodeCount = count,
-                lastReadEpisodeTitle = lastReadTitle,
-                hasProgress = hasEpProgress || novel.currentPosition > 0
-            )
         }
         emit(items)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
