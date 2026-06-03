@@ -236,7 +236,6 @@ private fun NovelListItem(
                     Box(
                         modifier = Modifier
                             .padding(end = 6.dp)
-                            .widthIn(max = 100.dp) // 長すぎるドメインを制限
                             .clip(RoundedCornerShape(4.dp))
                             .background(MaterialTheme.colorScheme.secondaryContainer)
                             .padding(horizontal = 4.dp, vertical = 2.dp)
@@ -246,7 +245,8 @@ private fun NovelListItem(
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 100.dp)
                         )
                     }
                 } else {
