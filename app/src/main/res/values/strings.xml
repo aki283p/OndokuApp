@@ -110,4 +110,16 @@
     <string name="site_hameln">ハーメルン</string>
     <string name="site_novelup">ノベルアップ+</string>
     <string name="site_estar">エブリスタ</string>
+    <string name="register_reading">読みを登録</string>
+    <string name="label_from_reading">表記</string>
+    <string name="label_to_reading">読み</string>
+    <string name="test_playback">テスト再生</string>
+    <string name="voice_selection">音声</string>
+    <string name="select_voice">音声を選択</string>
+    <string name="default_voice">デフォルト音声</string>
+    <string name="no_available_voices">利用可能な音声がありません</string>
+    <string name="test_sentence">これは読み上げテストです。</string>
+    <string name="registered_message">登録しました</string>
+    <string name="add_to_dictionary">読み替え辞書に追加</string>
+    <string name="stop_test">テスト停止</string>
 </resources>

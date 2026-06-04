@@ -67,6 +67,7 @@ fun ReaderScreen(
     val listState = rememberLazyListState()
     var showSettings by remember { mutableStateOf(false) }
     var showEpisodeList by remember { mutableStateOf(false) }
+    var showAddDictionary by remember { mutableStateOf(false) }
 
     // 自動スクロール
     LaunchedEffect(currentChunkIndex) {
@@ -110,6 +111,7 @@ fun ReaderScreen(
                 onToggleSettings = { showSettings = !showSettings },
                 onPreviousEpisode = { viewModel.moveToPreviousEpisode() },
                 onNextEpisode = { viewModel.moveToNextEpisode() },
+                onRegisterReading = { showAddDictionary = true },
                 hasPrevious = currentEpisodeIndex > 0,
                 hasNext = currentEpisodeIndex < readerEpisodes.size - 1,
                 hasMultipleEpisodes = readerEpisodes.size > 1
@@ -133,6 +135,17 @@ fun ReaderScreen(
                     showEpisodeList = false
                 },
                 onDismiss = { showEpisodeList = false }
+            )
+        }
+
+        if (showAddDictionary) {
+            RegisterReadingDialog(
+                onDismiss = { showAddDictionary = false },
+                onConfirm = { from, to ->
+                    viewModel.addDictionaryEntry(from, to)
+                    showAddDictionary = false
+                },
+                onTestPlay = { viewModel.speakTest(it) }
             )
         }
     }
@@ -344,6 +357,7 @@ private fun ReaderBottomBar(
     onToggleSettings: () -> Unit,
     onPreviousEpisode: () -> Unit,
     onNextEpisode: () -> Unit,
+    onRegisterReading: () -> Unit,
     hasPrevious: Boolean,
     hasNext: Boolean,
     hasMultipleEpisodes: Boolean
@@ -428,11 +442,72 @@ private fun ReaderBottomBar(
                     pitch = viewModel.speechSettings.pitch,
                     autoPlayNext = viewModel.autoPlayNextEpisode,
                     onSettingsChange = { viewModel.updateSpeechSettings(it) },
-                    onToggleAutoPlay = { viewModel.toggleAutoPlayNextEpisode() }
+                    onToggleAutoPlay = { viewModel.toggleAutoPlayNextEpisode() },
+                    availableVoices = viewModel.availableVoices,
+                    selectedVoiceName = viewModel.selectedVoiceName,
+                    onVoiceSelect = { viewModel.updateSelectedVoice(it) },
+                    onTestPlay = { viewModel.speakTest(it) },
+                    onRegisterReading = onRegisterReading,
+                    onLoadVoices = { viewModel.loadAvailableVoices() }
                 )
             }
         }
     }
+}
+
+@Composable
+fun RegisterReadingDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit,
+    onTestPlay: (String) -> Unit
+) {
+    var from by remember { mutableStateOf("") }
+    var to by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.register_reading)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = from,
+                    onValueChange = { from = it },
+                    label = { Text(stringResource(R.string.label_from_reading)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = to,
+                    onValueChange = { to = it },
+                    label = { Text(stringResource(R.string.label_to_reading)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Button(
+                    onClick = { onTestPlay(to) },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = to.isNotBlank()
+                ) {
+                    Icon(Icons.Default.PlayArrow, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.test_playback))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(from, to) },
+                enabled = from.trim().isNotBlank() && to.trim().isNotBlank()
+            ) {
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable
@@ -565,8 +640,21 @@ private fun SpeechSettingsPanel(
     pitch: Float,
     autoPlayNext: Boolean,
     onSettingsChange: (com.example.ondokuapp.settings.SpeechSettings) -> Unit,
-    onToggleAutoPlay: () -> Unit
+    onToggleAutoPlay: () -> Unit,
+    availableVoices: List<com.example.ondokuapp.speech.TtsVoiceInfo>,
+    selectedVoiceName: String?,
+    onVoiceSelect: (String?) -> Unit,
+    onTestPlay: (String) -> Unit,
+    onRegisterReading: () -> Unit,
+    onLoadVoices: () -> Unit
 ) {
+    var showVoiceMenu by remember { mutableStateOf(false) }
+    val testSentence = stringResource(R.string.test_sentence)
+
+    LaunchedEffect(Unit) {
+        onLoadVoices()
+    }
+
     Column(
         modifier = Modifier
             .padding(top = 16.dp)
@@ -601,7 +689,42 @@ private fun SpeechSettingsPanel(
             }
         }
         
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp))
+
+        // 音声選択
+        Text(
+            text = stringResource(R.string.voice_selection),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.outline
+        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { showVoiceMenu = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val selectedVoice = availableVoices.find { it.name == selectedVoiceName }
+                Text(selectedVoice?.displayName ?: stringResource(R.string.default_voice))
+                Icon(Icons.Default.ArrowDropDown, null)
+            }
+            DropdownMenu(
+                expanded = showVoiceMenu,
+                onDismissRequest = { showVoiceMenu = false },
+                modifier = Modifier.fillMaxWidth(0.9f)
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.default_voice)) },
+                    onClick = { onVoiceSelect(null); showVoiceMenu = false }
+                )
+                availableVoices.forEach { voice ->
+                    DropdownMenuItem(
+                        text = { Text(voice.displayName) },
+                        onClick = { onVoiceSelect(voice.name); showVoiceMenu = false }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.label_speed, speed), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(96.dp))
@@ -621,6 +744,30 @@ private fun SpeechSettingsPanel(
                 valueRange = 0.5f..2.0f,
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { onTestPlay(testSentence) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.PlayArrow, null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.test_playback))
+            }
+            OutlinedButton(
+                onClick = onRegisterReading,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Add, null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.register_reading))
+            }
         }
     }
 }

@@ -8,6 +8,12 @@ import com.example.ondokuapp.model.UserDictionaryEntry
 import com.example.ondokuapp.settings.SpeechSettings
 import java.util.Locale
 
+data class TtsVoiceInfo(
+    val name: String,
+    val locale: String,
+    val displayName: String
+)
+
 class TextToSpeechManager(
     context: Context,
     private val onStart: (Int) -> Unit = {},
@@ -18,6 +24,7 @@ class TextToSpeechManager(
     private var isInitialized = false
     private var pendingAction: (() -> Unit)? = null
     private var currentSettings = SpeechSettings()
+    private var selectedVoiceName: String? = null
     
     private var chunks: List<String> = emptyList()
     private var currentChunkIndex: Int = 0
@@ -37,6 +44,7 @@ class TextToSpeechManager(
                     isInitialized = true
                     setupListener()
                     applySettings(currentSettings)
+                    applyVoice(selectedVoiceName)
                     pendingAction?.invoke()
                     pendingAction = null
                 }
@@ -50,11 +58,13 @@ class TextToSpeechManager(
     private fun setupListener() {
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {
+                if (utteranceId == "test") return
                 val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
                 onStart(index)
             }
 
             override fun onDone(utteranceId: String?) {
+                if (utteranceId == "test") return
                 if (isStoppedManually) return
                 
                 val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
@@ -67,15 +77,39 @@ class TextToSpeechManager(
 
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) {
+                if (utteranceId == "test") return
                 val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
                 onError(index, "再生中にエラーが発生しました")
             }
 
             override fun onError(utteranceId: String?, errorCode: Int) {
+                if (utteranceId == "test") return
                 val index = utteranceId?.toIntOrNull() ?: currentChunkIndex
                 onError(index, "再生中にエラーが発生しました (code: $errorCode)")
             }
         })
+    }
+
+    /**
+     * 利用可能な音声一覧を取得する
+     */
+    fun getAvailableVoices(): List<TtsVoiceInfo> {
+        return tts?.voices?.filter { it.locale.language == "ja" }?.map {
+            TtsVoiceInfo(it.name, it.locale.toString(), it.name)
+        } ?: emptyList()
+    }
+
+    /**
+     * 音声を適用する
+     */
+    fun applyVoice(voiceName: String?) {
+        selectedVoiceName = voiceName
+        if (isInitialized && voiceName != null) {
+            val voice = tts?.voices?.find { it.name == voiceName }
+            if (voice != null) {
+                tts?.voice = voice
+            }
+        }
     }
 
     /**
@@ -112,12 +146,33 @@ class TextToSpeechManager(
             return
         }
         
-        // ユーザー辞書の適用
-        userDictionary.forEach { entry ->
-            text = text.replace(entry.from, entry.to)
-        }
+        text = applyDictionary(text)
 
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, currentChunkIndex.toString())
+    }
+
+    private fun applyDictionary(text: String): String {
+        var processedText = text
+        userDictionary.forEach { entry ->
+            processedText = processedText.replace(entry.from, entry.to)
+        }
+        return processedText
+    }
+
+    fun speakTest(text: String) {
+        if (!isInitialized || text.isBlank()) return
+        
+        // 既存の読み上げを停止（安全のため）
+        // ただし isStoppedManually は true にしない（再開を考慮する場合は別途管理が必要だが、
+        // 今回は「テスト再生時は止まって良い」という要件なので単純化）
+        tts?.stop()
+        
+        val processedText = applyDictionary(text)
+        tts?.speak(processedText, TextToSpeech.QUEUE_FLUSH, null, "test")
+    }
+
+    fun stopTest() {
+        tts?.stop()
     }
 
     fun updateDictionary(entries: List<UserDictionaryEntry>) {

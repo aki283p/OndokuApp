@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -79,7 +80,8 @@ fun DictionaryScreen(
                     DictionaryItem(
                         entry = entry,
                         onEdit = { editingEntry = entry },
-                        onDelete = { entryToDelete = entry }
+                        onDelete = { entryToDelete = entry },
+                        onTestPlay = { viewModel.speakTest(entry.to) }
                     )
                     HorizontalDivider()
                 }
@@ -92,7 +94,8 @@ fun DictionaryScreen(
                 onConfirm = { from, to ->
                     viewModel.addDictionaryEntry(from, to)
                     showAddDialog = false
-                }
+                },
+                onTestPlay = { viewModel.speakTest(it) }
             )
         }
 
@@ -103,7 +106,8 @@ fun DictionaryScreen(
                 onConfirm = { from, to ->
                     viewModel.updateDictionaryEntry(entry.copy(from = from, to = to))
                     editingEntry = null
-                }
+                },
+                onTestPlay = { viewModel.speakTest(it) }
             )
         }
 
@@ -136,13 +140,17 @@ fun DictionaryScreen(
 fun DictionaryItem(
     entry: UserDictionaryEntry,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onTestPlay: () -> Unit
 ) {
     ListItem(
         headlineContent = { Text(entry.from) },
         supportingContent = { Text("→ ${entry.to}") },
         trailingContent = {
             Row {
+                IconButton(onClick = onTestPlay) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.test_playback))
+                }
                 IconButton(onClick = onEdit) {
                     Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
                 }
@@ -158,7 +166,8 @@ fun DictionaryItem(
 fun DictionaryEntryDialog(
     entry: UserDictionaryEntry? = null,
     onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
+    onConfirm: (String, String) -> Unit,
+    onTestPlay: (String) -> Unit
 ) {
     var from by remember(entry?.id) { mutableStateOf(entry?.from ?: "") }
     var to by remember(entry?.id) { mutableStateOf(entry?.to ?: "") }
@@ -182,6 +191,15 @@ fun DictionaryEntryDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                Button(
+                    onClick = { onTestPlay(to) },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = to.isNotBlank()
+                ) {
+                    Icon(Icons.Default.PlayArrow, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.test_playback))
+                }
             }
         },
         confirmButton = {

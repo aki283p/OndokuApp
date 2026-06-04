@@ -19,6 +19,7 @@ import com.example.ondokuapp.repository.NovelRepository
 import com.example.ondokuapp.repository.SettingsRepository
 import com.example.ondokuapp.settings.SpeechSettings
 import com.example.ondokuapp.speech.TextToSpeechManager
+import com.example.ondokuapp.speech.TtsVoiceInfo
 import com.example.ondokuapp.ui.state.NovelListItemUiState
 import com.example.ondokuapp.util.TextCleaner
 import kotlinx.coroutines.*
@@ -82,6 +83,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var dictionaryEntries by mutableStateOf<List<UserDictionaryEntry>>(emptyList())
         private set
 
+    // 音声設定
+    var availableVoices by mutableStateOf<List<TtsVoiceInfo>>(emptyList())
+        private set
+    var selectedVoiceName by mutableStateOf<String?>(null)
+        private set
+
     init {
         // 保存済み設定の読み込み
         val savedSettings = settingsRepository.loadSpeechSettings()
@@ -89,6 +96,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ttsManager.applySettings(savedSettings)
 
         autoPlayNextEpisode = settingsRepository.loadAutoPlayNextEpisode()
+        selectedVoiceName = settingsRepository.loadSelectedVoiceName()
+        ttsManager.applyVoice(selectedVoiceName)
 
         // 辞書の読み込み
         var entries = dictionaryRepository.loadEntries()
@@ -98,6 +107,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         dictionaryEntries = entries
         ttsManager.updateDictionary(entries)
+
+        // 利用可能な音声の読み込み（TTS初期化待ちを考慮して少し遅延させるか、初期化完了コールバックが必要）
+        // 現状のTtsManagerは初期化完了後にしかvoicesを取得できないため、定期的にチェックするか、
+        // あるいはViewModelから明示的にloadAvailableVoicesを呼ぶ。
+    }
+
+    fun loadAvailableVoices() {
+        availableVoices = ttsManager.getAvailableVoices()
+    }
+
+    fun updateSelectedVoice(voiceName: String?) {
+        selectedVoiceName = voiceName
+        ttsManager.applyVoice(voiceName)
+        settingsRepository.saveSelectedVoiceName(voiceName)
+    }
+
+    fun speakTest(text: String) {
+        ttsManager.speakTest(text)
+    }
+
+    fun stopTest() {
+        ttsManager.stopTest()
     }
 
     // 本棚の表示用State
@@ -654,6 +685,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // 辞書操作
     fun addDictionaryEntry(from: String, to: String) {
         val entry = dictionaryRepository.addEntry(from, to)
+        if (entry != null) {
+            android.widget.Toast.makeText(
+                getApplication(),
+                getApplication<Application>().getString(R.string.registered_message),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
         dictionaryEntries = dictionaryRepository.loadEntries()
         ttsManager.updateDictionary(dictionaryEntries)
     }

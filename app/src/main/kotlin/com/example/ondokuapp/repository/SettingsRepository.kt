@@ -31,4 +31,15 @@ class SettingsRepository(context: Context) {
             apply()
         }
     }
+
+    fun loadSelectedVoiceName(): String? {
+        return prefs.getString("selected_voice", null)
+    }
+
+    fun saveSelectedVoiceName(voiceName: String?) {
+        prefs.edit().apply {
+            putString("selected_voice", voiceName)
+            apply()
+        }
+    }
 }
