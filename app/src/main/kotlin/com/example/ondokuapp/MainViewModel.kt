@@ -194,6 +194,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var currentEpisodeIndex by mutableStateOf(0)
         private set
     private var currentReadingEpisodeId: Long? = null
+    var readerStartFromBeginning by mutableStateOf(false)
+        private set
 
     // 詳細画面用の話リスト
     var detailEpisodes by mutableStateOf<List<Episode>>(emptyList())
@@ -428,13 +430,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 読み上げ画面に遷移する前に、指定したエピソードを選択状態にする
      */
-    fun prepareReaderEpisode(novelId: Long, index: Int) {
+    fun prepareReaderEpisode(novelId: Long, index: Int, fromBeginning: Boolean = false) {
         currentReadingNovelId = novelId
         currentEpisodeIndex = index
+        readerStartFromBeginning = fromBeginning
         // 再生状態などはリセット
         isSpeaking = false
         currentChunks = emptyList()
         currentChunkIndex = 0
+    }
+
+    fun consumeReaderStartFromBeginning(): Boolean {
+        val fromStart = readerStartFromBeginning
+        readerStartFromBeginning = false
+        return fromStart
     }
 
     fun startSpeakingEpisode(

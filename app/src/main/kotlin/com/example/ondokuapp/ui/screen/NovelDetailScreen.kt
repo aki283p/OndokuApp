@@ -82,11 +82,11 @@ fun NovelDetailScreen(
                         } else {
                             0
                         }
-                        viewModel.prepareReaderEpisode(novel.id, index)
+                        viewModel.prepareReaderEpisode(novel.id, index, fromBeginning = false)
                         onStartReader()
                     },
                     onStartFromBegin = {
-                        viewModel.prepareReaderEpisode(novel.id, 0)
+                        viewModel.prepareReaderEpisode(novel.id, 0, fromBeginning = true)
                         onStartReader()
                     }
                 )
@@ -103,13 +103,24 @@ fun NovelDetailScreen(
             }
 
             // Episode一覧
+            if (episodes.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.no_episodes_guide),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+
             itemsIndexed(episodes) { index, episode ->
                 EpisodeItem(
                     index = index,
                     episode = episode,
                     isLastRead = episode.id == novel.lastReadEpisodeId,
                     onClick = {
-                        viewModel.prepareReaderEpisode(novel.id, index)
+                        viewModel.prepareReaderEpisode(novel.id, index, fromBeginning = false)
                         onStartReader()
                     }
                 )

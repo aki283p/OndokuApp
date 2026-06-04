@@ -398,10 +398,11 @@ private fun ReaderBottomBar(
                 isSpeaking = isSpeaking,
                 hasProgress = (currentEpisode?.currentPosition ?: novel.currentPosition) > 0,
                 onStart = { 
+                    val fromStart = viewModel.consumeReaderStartFromBeginning()
                     if (currentEpisode != null) {
-                        viewModel.startSpeakingEpisode(novel, currentEpisode, fromStart = false)
+                        viewModel.startSpeakingEpisode(novel, currentEpisode, fromStart = fromStart)
                     } else {
-                        viewModel.startSpeaking(novel, fromStart = false)
+                        viewModel.startSpeaking(novel, fromStart = fromStart)
                     }
                 },
                 onRestart = { 
