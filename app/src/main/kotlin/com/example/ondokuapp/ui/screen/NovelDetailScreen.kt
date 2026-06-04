@@ -39,6 +39,7 @@ fun NovelDetailScreen(
 
     LaunchedEffect(novel.id) {
         viewModel.loadEpisodesForDetail(novel.id)
+        viewModel.clearNovelUpdateState()
     }
 
     Scaffold(
@@ -51,6 +52,18 @@ fun NovelDetailScreen(
                     }
                 },
                 actions = {
+                    if (novel.sourceUrl != null) {
+                        IconButton(
+                            onClick = { viewModel.updateNovelEpisodes(novel) },
+                            enabled = !viewModel.isUpdatingNovelEpisodes
+                        ) {
+                            if (viewModel.isUpdatingNovelEpisodes) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.update))
+                            }
+                        }
+                    }
                     IconButton(onClick = { viewModel.toggleFavorite(novel) }) {
                         Icon(
                             imageVector = if (novel.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -67,6 +80,19 @@ fun NovelDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // 更新状態表示
+            if (viewModel.isUpdatingNovelEpisodes || viewModel.novelUpdateError != null || viewModel.novelUpdateMessage != null) {
+                item {
+                    UpdateStatusBanner(
+                        isUpdating = viewModel.isUpdatingNovelEpisodes,
+                        progress = viewModel.novelUpdateProgress,
+                        error = viewModel.novelUpdateError,
+                        message = viewModel.novelUpdateMessage,
+                        onDismiss = { viewModel.clearNovelUpdateState() }
+                    )
+                }
+            }
+
             // 作品情報カード
             item {
                 NovelInfoCard(novel, episodes.size, dateFormat)
@@ -255,4 +281,44 @@ private fun EpisodeItem(
             containerColor = if (isLastRead) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else Color.Transparent
         )
     )
+}
+
+@Composable
+private fun UpdateStatusBanner(
+    isUpdating: Boolean,
+    progress: String,
+    error: String?,
+    message: String?,
+    onDismiss: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = when {
+            error != null -> MaterialTheme.colorScheme.errorContainer
+            message != null -> MaterialTheme.colorScheme.secondaryContainer
+            else -> MaterialTheme.colorScheme.primaryContainer
+        }
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (isUpdating) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                Text(text = progress, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            } else {
+                val icon = if (error != null) Icons.Default.Error else Icons.Default.Info
+                val text = error ?: message ?: ""
+                Icon(icon, null, tint = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSecondaryContainer)
+                Text(text = text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
 }

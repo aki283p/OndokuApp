@@ -188,6 +188,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var episodeDownloadError by mutableStateOf<String?>(null)
         private set
 
+    // 作品更新状態
+    var isUpdatingNovelEpisodes by mutableStateOf(false)
+        private set
+    var novelUpdateProgress by mutableStateOf("")
+        private set
+    var novelUpdateError by mutableStateOf<String?>(null)
+        private set
+    var novelUpdateMessage by mutableStateOf<String?>(null)
+        private set
+
     // Reader画面用の話リスト
     var readerEpisodes by mutableStateOf<List<Episode>>(emptyList())
         private set
@@ -425,6 +435,98 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             detailEpisodes = episodeRepository.getEpisodesByNovelId(novelId).first()
         }
+    }
+
+    fun updateNovelEpisodes(novel: Novel) {
+        val sourceUrl = novel.sourceUrl
+        if (sourceUrl.isNullOrBlank()) {
+            novelUpdateError = "取得元URLがありません"
+            return
+        }
+
+        viewModelScope.launch {
+            isUpdatingNovelEpisodes = true
+            novelUpdateError = null
+            novelUpdateMessage = null
+            novelUpdateProgress = "話一覧を確認中..."
+
+            // 1. 最新の話リンク一覧を取得
+            val linksResult = importRepository.fetchEpisodeLinksFromUrl(sourceUrl)
+            if (linksResult.isFailure) {
+                novelUpdateError = "話一覧の取得に失敗しました: ${linksResult.exceptionOrNull()?.message}"
+                isUpdatingNovelEpisodes = false
+                return@launch
+            }
+
+            val allLinks = linksResult.getOrNull() ?: emptyList()
+            if (allLinks.isEmpty()) {
+                novelUpdateMessage = "新しい話はありません"
+                isUpdatingNovelEpisodes = false
+                return@launch
+            }
+
+            // 2. 既存のEpisode URL一覧を取得 (正規化して比較)
+            val existingEpisodes = episodeRepository.getEpisodesByNovelId(novel.id).first()
+            val normalizeUrl = { url: String -> url.trim().removeSuffix("/") }
+            val existingUrls = existingEpisodes.mapNotNull { it.episodeUrl?.let(normalizeUrl) }.toSet()
+
+            // 3. 未保存のリンクを抽出
+            val newLinks = allLinks.filter { normalizeUrl(it.url) !in existingUrls }
+
+            if (newLinks.isEmpty()) {
+                novelUpdateMessage = "新しい話はありません"
+                isUpdatingNovelEpisodes = false
+                return@launch
+            }
+
+            // 4. 新しい話を順番に取得 (最大20話)
+            val linksToDownload = newLinks.take(MAX_EPISODE_DOWNLOAD_COUNT)
+            val downloadedEpisodes = mutableListOf<Episode>()
+            val startIndex = existingEpisodes.maxOfOrNull { it.episodeIndex }?.plus(1) ?: 0
+
+            for ((offset, link) in linksToDownload.withIndex()) {
+                novelUpdateProgress = "話を取得中: ${offset + 1} / ${linksToDownload.size}"
+                
+                importRepository.fetchFromUrl(link.url).onSuccess { novelData ->
+                    downloadedEpisodes.add(
+                        Episode(
+                            novelId = novel.id,
+                            title = link.title,
+                            content = novelData.content,
+                            episodeUrl = link.url,
+                            episodeIndex = startIndex + offset,
+                            isDownloaded = true,
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }.onFailure {
+                    // 失敗した話はスキップ
+                }
+            }
+
+            if (downloadedEpisodes.isEmpty()) {
+                novelUpdateError = "新しい話の取得に失敗しました"
+                isUpdatingNovelEpisodes = false
+                return@launch
+            }
+
+            // 5. DBに保存
+            episodeRepository.insertEpisodes(downloadedEpisodes)
+            
+            // 6. 作品の更新日時を更新
+            repository.updateNovel(novel.copy(updatedAt = System.currentTimeMillis()))
+
+            novelUpdateMessage = "${downloadedEpisodes.size}話を追加しました"
+            loadEpisodesForDetail(novel.id)
+            isUpdatingNovelEpisodes = false
+        }
+    }
+
+    fun clearNovelUpdateState() {
+        novelUpdateError = null
+        novelUpdateMessage = null
+        novelUpdateProgress = ""
     }
 
     /**

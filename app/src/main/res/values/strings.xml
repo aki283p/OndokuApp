@@ -89,4 +89,11 @@
     <string name="saved_episodes">保存済みの話</string>
     <string name="last_read_episode">最後に聴いた話</string>
     <string name="no_episodes_guide">保存済みの話はありません。\nこの作品は単一本文として再生されます。</string>
+    <string name="update">更新</string>
+    <string name="update_novel">作品を更新</string>
+    <string name="no_new_episodes">新しい話はありません</string>
+    <string name="episodes_added">%1$d話を追加しました</string>
+    <string name="fetching_episodes">話を取得中: %1$d / %2$d</string>
+    <string name="update_failed">更新に失敗しました</string>
+    <string name="error_no_source_url">取得元URLがありません</string>
 </resources>
