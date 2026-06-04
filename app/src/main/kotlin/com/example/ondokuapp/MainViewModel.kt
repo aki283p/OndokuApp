@@ -193,6 +193,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var novelUpdateProgress by mutableStateOf("")
         private set
+    // TODO: ユーザー表示文言はUiEventやResourceProvider経由でstrings.xmlに寄せる
     var novelUpdateError by mutableStateOf<String?>(null)
         private set
     var novelUpdateMessage by mutableStateOf<String?>(null)

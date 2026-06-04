@@ -35,7 +35,8 @@ fun NovelListScreen(
     onNovelClick: (Novel) -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (Novel) -> Unit,
-    onOpenDictionary: () -> Unit
+    onOpenDictionary: () -> Unit,
+    onOpenSiteList: () -> Unit
 ) {
     val novelItems by viewModel.novelListItems.collectAsState()
     var novelToDelete by remember { mutableStateOf<Novel?>(null) }
@@ -44,7 +45,8 @@ fun NovelListScreen(
         topBar = {
             BookshelfTopBar(
                 viewModel = viewModel,
-                onOpenDictionary = onOpenDictionary
+                onOpenDictionary = onOpenDictionary,
+                onOpenSiteList = onOpenSiteList
             )
         },
         floatingActionButton = {
@@ -97,7 +99,8 @@ fun NovelListScreen(
 @Composable
 private fun BookshelfTopBar(
     viewModel: MainViewModel,
-    onOpenDictionary: () -> Unit
+    onOpenDictionary: () -> Unit,
+    onOpenSiteList: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
@@ -147,6 +150,11 @@ private fun BookshelfTopBar(
                     text = { Text(stringResource(R.string.dictionary)) },
                     onClick = { onOpenDictionary(); showMoreMenu = false },
                     leadingIcon = { Icon(Icons.Default.Spellcheck, null) }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.supported_sites)) },
+                    onClick = { onOpenSiteList(); showMoreMenu = false },
+                    leadingIcon = { Icon(Icons.Default.Public, null) }
                 )
             }
         }

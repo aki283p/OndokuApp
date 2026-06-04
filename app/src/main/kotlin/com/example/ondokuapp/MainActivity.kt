@@ -12,14 +12,18 @@ import com.example.ondokuapp.ui.screen.NovelDetailScreen
 import com.example.ondokuapp.ui.screen.NovelEditScreen
 import com.example.ondokuapp.ui.screen.NovelListScreen
 import com.example.ondokuapp.ui.screen.ReaderScreen
+import com.example.ondokuapp.ui.screen.SiteListScreen
+import com.example.ondokuapp.ui.screen.WebBrowserScreen
 import com.example.ondokuapp.ui.theme.OndokuAppTheme
 
 sealed class Screen {
     data object List : Screen()
-    data class Edit(val novel: Novel? = null) : Screen()
+    data class Edit(val novel: Novel? = null, val initialUrl: String? = null) : Screen()
     data class Detail(val novel: Novel) : Screen()
     data class Reader(val novel: Novel) : Screen()
     data object Dictionary : Screen()
+    data object SiteList : Screen()
+    data class WebBrowser(val initialUrl: String) : Screen()
 }
 
 class MainActivity : ComponentActivity() {
@@ -46,13 +50,15 @@ fun AppRoot() {
                 onNovelClick = { currentScreen = Screen.Detail(it) },
                 onAddClick = { currentScreen = Screen.Edit(null) },
                 onEditClick = { currentScreen = Screen.Edit(it) },
-                onOpenDictionary = { currentScreen = Screen.Dictionary }
+                onOpenDictionary = { currentScreen = Screen.Dictionary },
+                onOpenSiteList = { currentScreen = Screen.SiteList }
             )
         }
         is Screen.Edit -> {
             NovelEditScreen(
                 viewModel = viewModel,
                 novel = screen.novel,
+                initialUrl = screen.initialUrl,
                 onBack = { currentScreen = Screen.List }
             )
         }
@@ -75,6 +81,19 @@ fun AppRoot() {
             DictionaryScreen(
                 viewModel = viewModel,
                 onBack = { currentScreen = Screen.List }
+            )
+        }
+        is Screen.SiteList -> {
+            SiteListScreen(
+                onSiteClick = { currentScreen = Screen.WebBrowser(it.url) },
+                onBack = { currentScreen = Screen.List }
+            )
+        }
+        is Screen.WebBrowser -> {
+            WebBrowserScreen(
+                initialUrl = screen.initialUrl,
+                onAddPage = { currentScreen = Screen.Edit(initialUrl = it) },
+                onBack = { currentScreen = Screen.SiteList }
             )
         }
     }

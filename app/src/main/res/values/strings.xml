@@ -96,4 +96,18 @@
     <string name="fetching_episodes">話を取得中: %1$d / %2$d</string>
     <string name="update_failed">更新に失敗しました</string>
     <string name="error_no_source_url">取得元URLがありません</string>
+    <string name="supported_sites">対応サイト</string>
+    <string name="site_notice">サイトによっては本文を取得できない場合があります。\nログインが必要なページやJavaScriptで本文を表示するページには対応できない場合があります。</string>
+    <string name="add_this_page">このページを追加</string>
+    <string name="refresh_page">ページを更新</string>
+    <string name="browser_back">ブラウザで戻る</string>
+    <string name="url_label">URL</string>
+    <string name="in_app_browser">アプリ内ブラウザ</string>
+    <string name="site_syosetu">小説家になろう</string>
+    <string name="site_kakuyomu">カクヨム</string>
+    <string name="site_aozora">青空文庫</string>
+    <string name="site_alphapolis">アルファポリス</string>
+    <string name="site_hameln">ハーメルン</string>
+    <string name="site_novelup">ノベルアップ+</string>
+    <string name="site_estar">エブリスタ</string>
 </resources>

@@ -26,11 +26,12 @@ import com.example.ondokuapp.model.Novel
 fun NovelEditScreen(
     viewModel: MainViewModel,
     novel: Novel? = null,
+    initialUrl: String? = null,
     onBack: () -> Unit
 ) {
     var title by remember { mutableStateOf(novel?.title ?: "") }
     var content by remember { mutableStateOf(novel?.content ?: "") }
-    var url by remember { mutableStateOf(novel?.sourceUrl ?: "") }
+    var url by remember { mutableStateOf(novel?.sourceUrl ?: initialUrl ?: "") }
     
     var showOverwriteDialog by remember { mutableStateOf(false) }
     var pendingImportData by remember { mutableStateOf<Pair<String, String>?>(null) }
