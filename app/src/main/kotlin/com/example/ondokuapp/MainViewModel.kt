@@ -195,6 +195,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private set
     private var currentReadingEpisodeId: Long? = null
 
+    // 詳細画面用の話リスト
+    var detailEpisodes by mutableStateOf<List<Episode>>(emptyList())
+        private set
+
     fun updateSearchQuery(query: String) { searchQuery = query }
     fun updateSortOrder(order: SortOrder) { sortOrder = order }
     fun toggleFavoriteFilter() { showFavoritesOnly = !showFavoritesOnly }
@@ -396,18 +400,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val episodes = episodeRepository.getEpisodesByNovelId(novel.id).first()
             readerEpisodes = episodes
             
+            // すでに currentEpisodeIndex がセットされている（詳細画面からの遷移など）場合は
+            // そのままにする。ただし、エピソードリストが空でないことを確認。
             if (episodes.isNotEmpty()) {
-                val lastReadId = novel.lastReadEpisodeId
-                val index = if (lastReadId != null) {
-                    episodes.indexOfFirst { it.id == lastReadId }.coerceAtLeast(0)
-                } else {
-                    0
+                if (currentReadingNovelId != novel.id) {
+                    // 別の作品を開いた場合は初期化
+                    val lastReadId = novel.lastReadEpisodeId
+                    val index = if (lastReadId != null) {
+                        episodes.indexOfFirst { it.id == lastReadId }.coerceAtLeast(0)
+                    } else {
+                        0
+                    }
+                    currentEpisodeIndex = index
                 }
-                currentEpisodeIndex = index
             } else {
                 currentEpisodeIndex = 0
             }
         }
+    }
+
+    fun loadEpisodesForDetail(novelId: Long) {
+        viewModelScope.launch {
+            detailEpisodes = episodeRepository.getEpisodesByNovelId(novelId).first()
+        }
+    }
+
+    /**
+     * 読み上げ画面に遷移する前に、指定したエピソードを選択状態にする
+     */
+    fun prepareReaderEpisode(novelId: Long, index: Int) {
+        currentReadingNovelId = novelId
+        currentEpisodeIndex = index
+        // 再生状態などはリセット
+        isSpeaking = false
+        currentChunks = emptyList()
+        currentChunkIndex = 0
     }
 
     fun startSpeakingEpisode(

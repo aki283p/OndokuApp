@@ -79,4 +79,13 @@
     <string name="close">閉じる</string>
     <string name="downloaded_episodes">取得済み: %1$d話</string>
     <string name="last_read_label">最終再生: %1$s</string>
+    <string name="novel_detail">作品詳細</string>
+    <string name="novel_info">作品情報</string>
+    <string name="continue_listening">続きから聴く</string>
+    <string name="start_from_begin">最初から聴く</string>
+    <string name="source_label">取得元</string>
+    <string name="downloaded_episodes_label">取得済み話数</string>
+    <string name="last_read_at_label">最終再生日</string>
+    <string name="saved_episodes">保存済みの話</string>
+    <string name="last_read_episode">最後に聴いた話</string>
 </resources>

@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ondokuapp.model.Novel
 import com.example.ondokuapp.ui.screen.DictionaryScreen
+import com.example.ondokuapp.ui.screen.NovelDetailScreen
 import com.example.ondokuapp.ui.screen.NovelEditScreen
 import com.example.ondokuapp.ui.screen.NovelListScreen
 import com.example.ondokuapp.ui.screen.ReaderScreen
@@ -16,6 +17,7 @@ import com.example.ondokuapp.ui.theme.OndokuAppTheme
 sealed class Screen {
     data object List : Screen()
     data class Edit(val novel: Novel? = null) : Screen()
+    data class Detail(val novel: Novel) : Screen()
     data class Reader(val novel: Novel) : Screen()
     data object Dictionary : Screen()
 }
@@ -41,7 +43,7 @@ fun AppRoot() {
         is Screen.List -> {
             NovelListScreen(
                 viewModel = viewModel,
-                onNovelClick = { currentScreen = Screen.Reader(it) },
+                onNovelClick = { currentScreen = Screen.Detail(it) },
                 onAddClick = { currentScreen = Screen.Edit(null) },
                 onEditClick = { currentScreen = Screen.Edit(it) },
                 onOpenDictionary = { currentScreen = Screen.Dictionary }
@@ -52,6 +54,14 @@ fun AppRoot() {
                 viewModel = viewModel,
                 novel = screen.novel,
                 onBack = { currentScreen = Screen.List }
+            )
+        }
+        is Screen.Detail -> {
+            NovelDetailScreen(
+                viewModel = viewModel,
+                novel = screen.novel,
+                onBack = { currentScreen = Screen.List },
+                onStartReader = { currentScreen = Screen.Reader(screen.novel) }
             )
         }
         is Screen.Reader -> {
